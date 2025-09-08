@@ -16,13 +16,13 @@ Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
 
 	// define the bullet mesh (in local space)
 	// A
-	m_localMesh[0] = Vertex(Vec3(0.f, 0.5f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
+	m_localMesh[0] = Vertex(Vec3(0.f, 0.5f, 0.f), Rgba8(255, 255, 0, 255), Vec2(0.f, 0.f));
 	m_localMesh[1] = Vertex(Vec3(0.5f, 0.f, 0.f), Rgba8(255, 255, 0, 255), Vec2(0.f, 0.f));
-	m_localMesh[2] = Vertex(Vec3(0.f, -0.5f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
+	m_localMesh[2] = Vertex(Vec3(0.f, -0.5f, 0.f), Rgba8(255, 255, 0, 255), Vec2(0.f, 0.f));
 	// B
-	m_localMesh[3] = Vertex(Vec3(-2.f, 0.f, 0.f), Rgba8(255, 0, 0, 255), Vec2(0.f, 0.f));
-	m_localMesh[4] = Vertex(Vec3(0.f, 0.5f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
-	m_localMesh[5] = Vertex(Vec3(0.f, -0.5f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
+	m_localMesh[3] = Vertex(Vec3(-2.f, 0.f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
+	m_localMesh[4] = Vertex(Vec3(0.f, 0.5f, 0.f), Rgba8(255, 0, 0, 255), Vec2(0.f, 0.f));
+	m_localMesh[5] = Vertex(Vec3(0.f, -0.5f, 0.f), Rgba8(255, 0, 0, 255), Vec2(0.f, 0.f));
 }
 
 //-----------------------------------------------------------------------------------------------

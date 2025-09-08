@@ -13,21 +13,24 @@ public:
 	~App();
 	void RunFrame();
 	bool IsQuitting();
-	bool IsKeyDown(unsigned char keyCode) const;
-	bool WasKeyJustPressed(unsigned char keyCode) const;
+	void OnKeyDown(unsigned char keyCode);
+	void OnKeyUp(unsigned char keyCode);
 
 public:
 	Game* m_game = nullptr;
 	Camera* m_camera = nullptr;
 
-	bool g_isQuitting = false;
-	bool g_isSlowDown = false;
-	bool g_isPause = false;
+	bool m_isQuitting = false;
+	bool m_isSlowDown = false;
+	bool m_isPause = false;
+	bool m_singleStep = false;
+	bool m_isFiring = false;
+
 	bool pauseTrigger = true;
-	bool g_singleStep = false;
+	bool firingTrigger = true;
 
 private:
-	bool* m_keyDownThisFrame[256];
-	bool* m_keyDownLastFrame[256];
+	bool m_keyDownThisFrame[256];
+	bool m_keyUpThisFrame[256];
 
 };

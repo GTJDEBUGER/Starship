@@ -3,6 +3,7 @@
 #include "PlayerShip.hpp"
 #include "Asteroid.hpp"
 #include "Bullet.hpp"
+#include "App.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Game::Game()
@@ -66,6 +67,26 @@ void Game::Update(float deltaSeconds)
 				m_bullets[i] = nullptr;
 			}
 		}
+	}
+
+	if (g_app->m_isFiring) {
+		int freeBulletIndex = -1;
+		for (int i = 0; i < MAX_BULLETS; i++) {
+			if (m_bullets[i] == nullptr) {
+				freeBulletIndex = i;
+				break;
+			}
+		}
+
+		if (freeBulletIndex > -1) {
+			m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector() *2, 
+														  m_player->GetForwardVector());
+		}
+		else {
+			// Error report
+		}
+
+		g_app->m_isFiring = false;
 	}
 }
 

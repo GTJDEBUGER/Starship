@@ -43,7 +43,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 		// App close requested via "X" button, or right-click "Close Window" on task bar, or "Close" from system menu, or Alt-F4
 		case WM_CLOSE:
 		{
-			g_app->g_isQuitting = true;
+			g_app->m_isQuitting = true;
 			return 0; // "Consumes" this message (tells Windows "okay, we handled it")
 		}
 
@@ -52,37 +52,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 		{
 			unsigned char asKey = (unsigned char)wParam;
 
-			if (asKey == 'T') {
-				g_app->g_isSlowDown = true;
-			}
-
-			if (asKey == 'P' && g_app->pauseTrigger) {
-				g_app->g_isPause = !g_app->g_isPause;
-				g_app->pauseTrigger = false;
-			}
-
-			if (asKey == 'O') {
-				g_app->g_singleStep = true;
-			}
-
-			if (asKey == 'Q') {
-				g_app->g_isQuitting = true;
-			}
-
-			if (asKey == 'E') {
-				g_app->m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
-			}
-
-			if (asKey == 'S' && asKey == 'F') {
-				g_app->m_game->m_player->m_rotationSpeed = 0;
-			}
-			else if (asKey == 'F') {
-				g_app->m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
-			}
-			else if (asKey == 'S') {
-				g_app->m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
-			}
-
+			g_app->OnKeyDown(asKey);
 			break;
 		}
 
@@ -91,22 +61,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 		{
 			unsigned char asKey = (unsigned char) wParam;
 
-			// #SD1ToDo: Tell the App (or InputSystem later) about this key-released event...
-			if (asKey == 'T') {
-				g_app->g_isSlowDown = false;
-			}
-
-			if(asKey == 'P' && !g_app->pauseTrigger) {
-				g_app->pauseTrigger = true;
-			}
-
-			if (asKey == 'E') {
-				g_app->m_game->m_player->m_acceleration = 0;
-			}
-
-			if (asKey == 'S' || asKey == 'F') {
-				g_app->m_game->m_player->m_rotationSpeed = 0;
-			}
+			g_app->OnKeyUp(asKey);
 			break;
 		}
 	}
