@@ -25,9 +25,11 @@ public:
 	bool m_isPause = false;
 	bool m_singleStep = false;
 	bool m_isFiring = false;
+	bool m_isDebugDraw = false;
 
 	bool pauseTrigger = true;
 	bool firingTrigger = true;
+	bool debugDrawTrigger = true;
 
 private:
 	bool m_keyDownThisFrame[256];

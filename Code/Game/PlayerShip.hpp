@@ -13,6 +13,8 @@ public:
 	void Render() override;
 	void Die() override;
 
+	bool IsCollidingWithAsteroid(Asteroid* asteroid);
+
 public:
 	float m_acceleration = 0;
 	float m_rotationSpeed = 0;

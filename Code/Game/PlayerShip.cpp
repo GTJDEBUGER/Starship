@@ -1,6 +1,7 @@
 #include "PlayerShip.hpp"
-#include "Engine/Math/MathUtils.hpp"
 #include "GameCommon.hpp"
+#include "Asteroid.hpp"
+#include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 
@@ -39,6 +40,16 @@ PlayerShip::PlayerShip(Game* game)
 //-----------------------------------------------------------------------------------------------
 void PlayerShip::Update(float deltaSeconds)
 {
+	//--------------------------------------------------------------------------------
+	for (int i = 0; i < MAX_ASTEROIDS; i++) {
+		if (m_game->m_asteroids[i] != nullptr && !m_game->m_asteroids[i]->m_isDead) {
+			if (IsCollidingWithAsteroid(m_game->m_asteroids[i])) {
+				Die();
+				break;
+			}
+		}
+	}
+
 	//--------------------------------------------------------------------------------
 	if (m_position.x - m_physicsRadius<0) {
 		m_position = lastFramePosition;
@@ -81,4 +92,13 @@ void PlayerShip::Render()
 void PlayerShip::Die()
 {
 	m_isDead = true;
+}
+
+//-----------------------------------------------------------------------------------------------
+bool PlayerShip::IsCollidingWithAsteroid(Asteroid* asteroid)
+{
+	if (DoDiscsOverlap(m_position, m_physicsRadius, asteroid->m_position, asteroid->m_physicsRadius)) {
+		return true;
+	}
+	return false;
 }

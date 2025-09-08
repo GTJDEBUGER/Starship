@@ -4,6 +4,10 @@
 #include "Asteroid.hpp"
 #include "Bullet.hpp"
 #include "App.hpp"
+#include "Engine/Math/MathUtils.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Core/Rgba8.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Game::Game()
@@ -47,7 +51,14 @@ Game::~Game()
 //-----------------------------------------------------------------------------------------------
 void Game::Update(float deltaSeconds)
 {
-	m_player->Update(deltaSeconds);
+	if (m_player != nullptr) {
+		m_player->Update(deltaSeconds);
+		if(m_player->m_isDead) {
+			delete m_player;
+			m_player = new PlayerShip(this);
+		}
+	}
+
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
 	{
 		if (m_asteroids[i] != nullptr) {
@@ -69,6 +80,7 @@ void Game::Update(float deltaSeconds)
 		}
 	}
 
+	//-----------------------------------------------------------------------------------------------
 	if (g_app->m_isFiring) {
 		int freeBulletIndex = -1;
 		for (int i = 0; i < MAX_BULLETS; i++) {
@@ -104,6 +116,48 @@ void Game::Render()
 	{
 		if (m_bullets[i] != nullptr) {
 			m_bullets[i]->Render();
+		}
+	}
+
+	// Debug Draw
+	if (g_app->m_isDebugDraw) {
+		if (m_player != nullptr)
+		{
+			g_engine->m_renderer->DrawCircle(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+			g_engine->m_renderer->DrawCircle(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255));
+			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255));
+			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255));
+		}
+
+		for(int i = 0; i < MAX_ASTEROIDS; i++)
+		{
+			if (m_asteroids[i] != nullptr) {
+				g_engine->m_renderer->DrawCircle(m_asteroids[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+				g_engine->m_renderer->DrawCircle(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(CosDegrees(m_asteroids[i]->m_orientationDegrees), SinDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
+				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
+				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255));
+
+				if (m_player != nullptr) {
+					g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+				}
+
+			}
+		}
+
+		for (int i = 0; i < MAX_BULLETS; i++) {
+			if (m_bullets[i] != nullptr) {
+				g_engine->m_renderer->DrawCircle(m_bullets[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+				g_engine->m_renderer->DrawCircle(m_bullets[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(CosDegrees(m_bullets[i]->m_orientationDegrees), SinDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
+				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
+				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255));
+
+				if (m_player != nullptr) {
+					g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+				}
+			}
 		}
 	}
 }

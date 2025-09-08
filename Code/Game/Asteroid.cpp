@@ -66,7 +66,7 @@ void Asteroid::Update(float deltaSeconds)
 	m_position += m_velocity * ASTEROID_SPEED * deltaSeconds;
 	m_orientationDegrees += m_angularVelocity * deltaSeconds;
 
-	if (IsOffScreen()) {
+	if (IsOffScreen() || m_health<=0) {
 		Die();
 	}
 }

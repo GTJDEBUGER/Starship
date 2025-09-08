@@ -43,6 +43,11 @@ void App::RunFrame()
 		firingTrigger = false;
 	}
 
+	if (m_keyDownThisFrame[112] && debugDrawTrigger) {
+		m_isDebugDraw = !m_isDebugDraw;
+		debugDrawTrigger = false;
+	}
+
 	if (m_keyDownThisFrame['O']) {
 		m_singleStep = true;
 	}
@@ -51,7 +56,7 @@ void App::RunFrame()
 		m_isQuitting = true;
 	}
 
-	if (m_keyDownThisFrame['E']) {
+	if (m_keyDownThisFrame['E'] && !m_keyUpThisFrame['E']) {
 		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
 	}
 
@@ -65,6 +70,7 @@ void App::RunFrame()
 		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
 	}
 
+
 	if (m_keyUpThisFrame['T']) {
 		m_isSlowDown = false;
 	}
@@ -75,6 +81,10 @@ void App::RunFrame()
 
 	if (m_keyUpThisFrame[32] && !firingTrigger && !m_isFiring) {
 		firingTrigger = true;
+	}
+
+	if (m_keyUpThisFrame[112] && !debugDrawTrigger) {
+		debugDrawTrigger = true;
 	}
 
 	if (m_keyUpThisFrame['E']) {
