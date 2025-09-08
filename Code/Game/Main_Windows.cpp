@@ -8,6 +8,8 @@
 #include "App.hpp"
 #include "Engine//Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+#include "Game.hpp"
+#include "PlayerShip.hpp"
 
 //-----------------------------------------------------------------------------------------------
 // #SD1ToDo: Later we will move this useful macro to a more central place, e.g. Engine/Core/EngineCommon.hpp
@@ -66,6 +68,21 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 			if (asKey == 'Q') {
 				g_app->g_isQuitting = true;
 			}
+
+			if (asKey == 'E') {
+				g_app->m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
+			}
+
+			if (asKey == 'S' && asKey == 'F') {
+				g_app->m_game->m_player->m_rotationSpeed = 0;
+			}
+			else if (asKey == 'F') {
+				g_app->m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
+			}
+			else if (asKey == 'S') {
+				g_app->m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
+			}
+
 			break;
 		}
 
@@ -81,6 +98,14 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 
 			if(asKey == 'P' && !g_app->pauseTrigger) {
 				g_app->pauseTrigger = true;
+			}
+
+			if (asKey == 'E') {
+				g_app->m_game->m_player->m_acceleration = 0;
+			}
+
+			if (asKey == 'S' || asKey == 'F') {
+				g_app->m_game->m_player->m_rotationSpeed = 0;
 			}
 			break;
 		}

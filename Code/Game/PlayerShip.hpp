@@ -13,7 +13,12 @@ public:
 	void Render() override;
 	void Die() override;
 
+public:
+	float m_acceleration = 0;
+	float m_rotationSpeed = 0;
+
 private:
 	Vertex m_localMesh[15];
 	Vertex m_worldMesh[15];
+	Vec2 lastFramePosition;
 };

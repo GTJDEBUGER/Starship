@@ -39,9 +39,31 @@ PlayerShip::PlayerShip(Game* game)
 //-----------------------------------------------------------------------------------------------
 void PlayerShip::Update(float deltaSeconds)
 {
-	m_velocity += GetForwardVector() * PLAYER_SHIP_ACCELERATION * deltaSeconds;
+	//--------------------------------------------------------------------------------
+	if (m_position.x - m_physicsRadius<0) {
+		m_position = lastFramePosition;
+		m_velocity = m_velocity - 2.0f * Vec2(1, 0) * m_velocity.x;
+	}
+	else if (m_position.x + m_physicsRadius>WORLD_SIZE_X) {
+		m_position = lastFramePosition;
+		m_velocity = m_velocity - 2.0f * Vec2(-1, 0) * (-m_velocity.x);
+	}
+	else if (m_position.y-m_physicsRadius<0) {
+		m_position = lastFramePosition;
+		m_velocity = m_velocity - 2.0f * Vec2(0, 1) * m_velocity.y;
+	}
+	else if (m_position.y+m_physicsRadius>WORLD_SIZE_Y) {
+		m_position = lastFramePosition;
+		m_velocity = m_velocity - 2.0f * Vec2(0, -1) * (-m_velocity.y);
+	}
+
+	//--------------------------------------------------------------------------------
+	m_velocity += GetForwardVector() * m_acceleration * deltaSeconds;
 	m_position += m_velocity * deltaSeconds;
-	m_orientationDegrees += m_angularVelocity * deltaSeconds;
+	m_orientationDegrees += m_rotationSpeed * deltaSeconds;
+
+	//--------------------------------------------------------------------------------
+	lastFramePosition = m_position;
 }
 
 //-----------------------------------------------------------------------------------------------

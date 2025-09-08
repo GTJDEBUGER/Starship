@@ -10,31 +10,54 @@ Asteroid::Asteroid(Game* game)
 	: Entity(game, Vec2(RandomNumberGenerator().RollRandomFloatInRange(0, WORLD_SIZE_X),
 						RandomNumberGenerator().RollRandomFloatInRange(0, WORLD_SIZE_Y)))
 {
-	m_velocity = Vec2(RandomNumberGenerator().RollRandomFloatZeroToOne(), 
-					  RandomNumberGenerator().RollRandomFloatZeroToOne()).GetNormalized();
+	m_velocity = Vec2(RandomNumberGenerator().RollRandomFloatZeroToOne()*2.f-1.f, 
+					  RandomNumberGenerator().RollRandomFloatZeroToOne()*2.f-1.f).GetNormalized();
 	m_physicsRadius = ASTEROID_PHYSICS_RADIUS;
 	m_cosmeticRadius = ASTEROID_COSMETIC_RADIUS;
 	m_angularVelocity = RandomNumberGenerator().RollRandomFloatInRange(-200.f,200.f);
 	m_health = 3;
 
-	// Define the asteroid mesh (in local space)
-	for (int i = 0; i < 48; i += 3) {
-		float randomLength = RandomNumberGenerator().RollRandomFloatInRange(ASTEROID_PHYSICS_RADIUS, 
+	float randomLengths[16];
+	for (int i = 0; i < 16; i++) {
+		randomLengths[i] = RandomNumberGenerator().RollRandomFloatInRange(ASTEROID_PHYSICS_RADIUS, 
 																		  ASTEROID_COSMETIC_RADIUS);
-		m_localMesh[i] = Vertex(Vec3(randomLength * CosDegrees((i + 1) / 16.f * 360.f),
-									 randomLength * SinDegrees((i + 1) / 16.f * 360.f),
-									 0.f),
-								Rgba8(100, 100, 100, 255),
-								Vec2(0.f, 0.f)
-								);
-		m_localMesh[i+1] = Vertex(Vec3(randomLength * CosDegrees(i / 16.f * 360.f),
-								        randomLength * SinDegrees(i / 16.f * 360.f),
-			                            0.f),
-								  Rgba8(100, 100, 100, 255), 
-								  Vec2(0.f, 0.f)
-							      );
-		m_localMesh[i + 2] = Vertex(Vec3(0, 0, 0), Rgba8(100, 100, 100, 255), Vec2(0.f, 0.f));
 	}
+
+	// Define the asteroid mesh (in local space)
+	for (int i = 0; i < 45; i += 3) {
+		m_localMesh[i] = Vertex(Vec3(randomLengths[i/3+1] * CosDegrees((i/3+1) / 16.f * 360.f),
+									randomLengths[i/3+1] * SinDegrees((i/3+1) / 16.f * 360.f),
+									0.f),
+						Rgba8(100, 100, 100, 255),
+						Vec2(0.f, 0.f)
+		);
+		m_localMesh[i+1] = Vertex(Vec3(randomLengths[i/3] * CosDegrees((i/3) / 16.f * 360.f),
+									randomLengths[i/3] * SinDegrees((i/3) / 16.f * 360.f),
+									0.f),
+						Rgba8(100, 100, 100, 255),
+						Vec2(0.f, 0.f)
+		);
+		m_localMesh[i+2] = Vertex(Vec3(0.f, 0.f, 0.f),
+						Rgba8(100, 100, 100, 255),
+						Vec2(0.f, 0.f)
+		);
+	}
+
+	
+	m_localMesh[45] = Vertex(Vec3(randomLengths[0], 0.f, 0.f),
+		Rgba8(100, 100, 100, 255),
+		Vec2(0.f, 0.f)
+	);
+	m_localMesh[46] = Vertex(Vec3(randomLengths[15] * CosDegrees(15.f / 16.f * 360.f),
+								randomLengths[15] * SinDegrees(15.f / 16.f * 360.f),
+								0.f),
+					Rgba8(100, 100, 100, 255),
+					Vec2(0.f, 0.f)
+	);
+	m_localMesh[47] = Vertex(Vec3(0.f, 0.f, 0.f),
+		Rgba8(100, 100, 100, 255),
+		Vec2(0.f, 0.f)
+	);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -42,6 +65,10 @@ void Asteroid::Update(float deltaSeconds)
 {
 	m_position += m_velocity * ASTEROID_SPEED * deltaSeconds;
 	m_orientationDegrees += m_angularVelocity * deltaSeconds;
+
+	if (IsOffScreen()) {
+		Die();
+	}
 }
 
 //-----------------------------------------------------------------------------------------------

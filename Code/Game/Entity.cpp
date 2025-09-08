@@ -23,8 +23,8 @@ Entity::~Entity() {
 
 //-----------------------------------------------------------------------------------------------
 bool Entity::IsOffScreen() const {
-	if (m_position.x < 0 || m_position.x > WORLD_SIZE_X ||
-		m_position.y < 0 || m_position.y > WORLD_SIZE_Y) {
+	if (m_position.x + m_cosmeticRadius < 0 || m_position.x - m_cosmeticRadius > WORLD_SIZE_X ||
+		m_position.y + m_cosmeticRadius < 0 || m_position.y - m_cosmeticRadius > WORLD_SIZE_Y) {
 		return true;
 	}
 	return false;

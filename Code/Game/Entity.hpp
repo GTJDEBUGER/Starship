@@ -27,4 +27,7 @@ public:
 	bool m_isDead;
 	bool m_isGarbage;
 	Game* m_game = nullptr;
+
+private:
+	Vec2 lastFramePosition;
 };

@@ -7,7 +7,6 @@
 //-----------------------------------------------------------------------------------------------
 Game::Game()
 {
-	m_player = new PlayerShip(this);
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
 	{
 		m_asteroids[i] = nullptr;
@@ -16,6 +15,11 @@ Game::Game()
 	{
 		m_bullets[i] = nullptr;
 	}
+
+	for (int i = 0; i < 6; i++) {
+		m_asteroids[i] = new Asteroid(this);
+	}
+	m_player = new PlayerShip(this);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -49,7 +53,7 @@ void Game::Update(float deltaSeconds)
 			m_asteroids[i]->Update(deltaSeconds);
 			if (m_asteroids[i]->m_isDead) {
 				delete m_asteroids[i];
-				m_asteroids[i] = nullptr;
+				m_asteroids[i] = new Asteroid(this);
 			}
 		}
 	}
