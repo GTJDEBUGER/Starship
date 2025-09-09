@@ -63,17 +63,20 @@ Asteroid::Asteroid(Game* game)
 //-----------------------------------------------------------------------------------------------
 void Asteroid::Update(float deltaSeconds)
 {
+	if (IsOffScreen() || m_health <= 0) {
+		Die();
+		return;
+	}
+
 	m_position += m_velocity * ASTEROID_SPEED * deltaSeconds;
 	m_orientationDegrees += m_angularVelocity * deltaSeconds;
-
-	if (IsOffScreen() || m_health<=0) {
-		Die();
-	}
 }
 
 //-----------------------------------------------------------------------------------------------
-void Asteroid::Render()
+void Asteroid::Render() const
 {
+
+	Vertex m_worldMesh[48];
 	for (int i = 0; i < 48; i++)
 	{
 		m_worldMesh[i] = m_localMesh[i];

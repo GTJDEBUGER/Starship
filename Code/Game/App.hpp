@@ -1,9 +1,10 @@
 #pragma once
 
 class App;
-extern App* g_app;
 class Game;
 class Camera;
+
+extern App* g_app;
 
 //-----------------------------------------------------------------------------------------------
 class App
@@ -13,6 +14,7 @@ public:
 	~App();
 	void RunFrame();
 	bool IsQuitting();
+	void Shutdown();
 	void OnKeyDown(unsigned char keyCode);
 	void OnKeyUp(unsigned char keyCode);
 
@@ -26,10 +28,14 @@ public:
 	bool m_singleStep = false;
 	bool m_isFiring = false;
 	bool m_isDebugDraw = false;
+	bool m_isPlayerRespawn = false;
+	bool m_isAsteroidRespawn = false;
 
 	bool pauseTrigger = true;
 	bool firingTrigger = true;
 	bool debugDrawTrigger = true;
+	bool playerRespawTrigger = true;
+	bool asteroidRespawTrigger = true;
 
 private:
 	bool m_keyDownThisFrame[256];

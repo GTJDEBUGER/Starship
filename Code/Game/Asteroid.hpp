@@ -8,10 +8,9 @@ public:
 	Asteroid(Game* game);
 	~Asteroid() override = default;
 	void Update(float deltaSeconds) override;
-	void Render() override;
+	void Render() const override;
 	void Die() override;
 
 private:
 	Vertex m_localMesh[48];
-	Vertex m_worldMesh[48];
 };

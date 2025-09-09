@@ -30,8 +30,9 @@ Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
 void Bullet::Update(float deltaSeconds)
 {
 	m_lifeTime -= deltaSeconds;
-	if(m_lifeTime <= 0.f) {
+	if(m_lifeTime <= 0.f || IsOffScreen()) {
 		Die();
+		return;
 	}
 
 	for (int i = 0; i < MAX_ASTEROIDS; i++) {
@@ -48,8 +49,10 @@ void Bullet::Update(float deltaSeconds)
 }
 
 //-----------------------------------------------------------------------------------------------
-void Bullet::Render()
+void Bullet::Render() const
 {
+
+	Vertex m_worldMesh[6];
 	for (int i = 0; i < 6; i++)
 	{
 		m_worldMesh[i] = m_localMesh[i];

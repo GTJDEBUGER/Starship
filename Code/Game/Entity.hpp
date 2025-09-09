@@ -10,7 +10,7 @@ public:
 	Entity(Game* game, Vec2 startPos);
 
 	virtual void Update(float deltaSeconds) = 0;
-	virtual void Render() = 0;
+	virtual void Render() const = 0;
 	virtual void Die() = 0;
 
 	bool IsOffScreen() const;

@@ -8,6 +8,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/Rgba8.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Game::Game()
@@ -51,12 +52,8 @@ Game::~Game()
 //-----------------------------------------------------------------------------------------------
 void Game::Update(float deltaSeconds)
 {
-	if (m_player != nullptr) {
+	if (m_player != nullptr && !m_player->m_isDead) {
 		m_player->Update(deltaSeconds);
-		if(m_player->m_isDead) {
-			delete m_player;
-			m_player = new PlayerShip(this);
-		}
 	}
 
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
@@ -65,7 +62,7 @@ void Game::Update(float deltaSeconds)
 			m_asteroids[i]->Update(deltaSeconds);
 			if (m_asteroids[i]->m_isDead) {
 				delete m_asteroids[i];
-				m_asteroids[i] = new Asteroid(this);
+				m_asteroids[i] = nullptr;
 			}
 		}
 	}
@@ -81,7 +78,7 @@ void Game::Update(float deltaSeconds)
 	}
 
 	//-----------------------------------------------------------------------------------------------
-	if (g_app->m_isFiring) {
+	if (g_app->m_isFiring && !m_player->m_isDead) {
 		int freeBulletIndex = -1;
 		for (int i = 0; i < MAX_BULLETS; i++) {
 			if (m_bullets[i] == nullptr) {
@@ -95,17 +92,60 @@ void Game::Update(float deltaSeconds)
 														  m_player->GetForwardVector());
 		}
 		else {
-			// Error report
+			if (IsDebuggerAvailable()) {
+				SystemDialogue_Okay("Run out bullets!", "Maximum of 20 Bullets alive at once.", MsgSeverityLevel::FATAL);
+			}
 		}
 
 		g_app->m_isFiring = false;
 	}
+	else if(g_app->m_isFiring) {
+		g_app->m_isFiring = false;
+	}
+
+	//-----------------------------------------------------------------------------------------------
+	if (g_app->m_isAsteroidRespawn) {
+		int freeAsteroidIndex = -1;
+		for (int i = 0; i < MAX_ASTEROIDS; i++) {
+			if (m_asteroids[i] == nullptr) {
+				freeAsteroidIndex = i;
+				break;
+			}
+		}
+
+		if (freeAsteroidIndex > -1) {
+			m_asteroids[freeAsteroidIndex] = new Asteroid(this);
+		}
+		else {
+			if (IsDebuggerAvailable()) {
+				SystemDialogue_Okay("Run out asteroids!", "Maximum of 12 asteroids alive at once.", MsgSeverityLevel::FATAL);
+			}
+		}
+
+		g_app->m_isAsteroidRespawn = false;
+	}
+
+	//-----------------------------------------------------------------------------------------------
+	if (g_app->m_isPlayerRespawn && m_player->m_isDead) {
+		m_player->m_position = Vec2(WORLD_CENTER_X, WORLD_CENTER_Y);
+		m_player->m_velocity = Vec2(0, 0);
+		m_player->m_orientationDegrees = 0.f;
+		m_player->m_isDead = false;
+
+		g_app->m_isPlayerRespawn = false;
+	}
+	else if(g_app->m_isPlayerRespawn) {
+		g_app->m_isPlayerRespawn = false;
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::Render()
+void Game::Render() const
 {
-	m_player->Render();
+	if (!m_player->m_isDead) {
+		m_player->Render();
+	}
+
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
 	{
 		if (m_asteroids[i] != nullptr) {
@@ -121,26 +161,26 @@ void Game::Render()
 
 	// Debug Draw
 	if (g_app->m_isDebugDraw) {
-		if (m_player != nullptr)
+		if (m_player != nullptr && !m_player->m_isDead)
 		{
-			g_engine->m_renderer->DrawCircle(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-			g_engine->m_renderer->DrawCircle(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255));
-			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255));
-			g_engine->m_renderer->DrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255));
+			DebugDrawRing(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+			DebugDrawRing(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255));
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255));
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255));
 		}
 
 		for(int i = 0; i < MAX_ASTEROIDS; i++)
 		{
 			if (m_asteroids[i] != nullptr) {
-				g_engine->m_renderer->DrawCircle(m_asteroids[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-				g_engine->m_renderer->DrawCircle(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(CosDegrees(m_asteroids[i]->m_orientationDegrees), SinDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
-				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
-				g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255));
+				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(CosDegrees(m_asteroids[i]->m_orientationDegrees), SinDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255));
 
-				if (m_player != nullptr) {
-					g_engine->m_renderer->DrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+				if (m_player != nullptr && !m_player->m_isDead) {
+					DebugDrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
 				}
 
 			}
@@ -148,14 +188,14 @@ void Game::Render()
 
 		for (int i = 0; i < MAX_BULLETS; i++) {
 			if (m_bullets[i] != nullptr) {
-				g_engine->m_renderer->DrawCircle(m_bullets[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-				g_engine->m_renderer->DrawCircle(m_bullets[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(CosDegrees(m_bullets[i]->m_orientationDegrees), SinDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
-				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
-				g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255));
+				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
+				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(CosDegrees(m_bullets[i]->m_orientationDegrees), SinDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255));
 
-				if (m_player != nullptr) {
-					g_engine->m_renderer->DrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+				if (m_player != nullptr && !m_player->m_isDead) {
+					DebugDrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
 				}
 			}
 		}

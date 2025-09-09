@@ -11,7 +11,7 @@ public:
 	Game();
 	~Game();
 	void Update(float deltaSeconds);
-	void Render();
+	void Render() const;
 
 public:
 	PlayerShip* m_player = nullptr;

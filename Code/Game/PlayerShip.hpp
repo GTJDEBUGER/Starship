@@ -10,7 +10,7 @@ public:
 	PlayerShip(Game* game);
 	~PlayerShip() override = default;
 	void Update(float deltaSeconds) override;
-	void Render() override;
+	void Render() const override;
 	void Die() override;
 
 	bool IsCollidingWithAsteroid(Asteroid* asteroid);
@@ -21,6 +21,5 @@ public:
 
 private:
 	Vertex m_localMesh[15];
-	Vertex m_worldMesh[15];
 	Vec2 lastFramePosition;
 };

@@ -17,3 +17,9 @@ constexpr float PLAYER_SHIP_ACCELERATION = 30.f;
 constexpr float PLAYER_SHIP_TURN_SPEED = 300.f;
 constexpr float PLAYER_SHIP_PHYSICS_RADIUS = 1.75f;
 constexpr float PLAYER_SHIP_COSMETIC_RADIUS = 2.25f;
+
+struct Vec2;
+struct Rgba8;
+
+void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor);
+void DebugDrawRing(Vec2 centre, float radius, Rgba8 circleColor);

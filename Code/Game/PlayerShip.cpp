@@ -45,7 +45,7 @@ void PlayerShip::Update(float deltaSeconds)
 		if (m_game->m_asteroids[i] != nullptr && !m_game->m_asteroids[i]->m_isDead) {
 			if (IsCollidingWithAsteroid(m_game->m_asteroids[i])) {
 				Die();
-				break;
+				return;
 			}
 		}
 	}
@@ -78,8 +78,9 @@ void PlayerShip::Update(float deltaSeconds)
 }
 
 //-----------------------------------------------------------------------------------------------
-void PlayerShip::Render()
+void PlayerShip::Render() const
 {
+	Vertex m_worldMesh[15];
 	for (int i = 0; i < 15; i++)
 	{
 		m_worldMesh[i] = m_localMesh[i];

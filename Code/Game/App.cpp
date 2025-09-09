@@ -29,6 +29,11 @@ App::~App()
 void App::RunFrame()
 {
 	//-------------------------------------------------------------------------------------------
+	if (m_keyDownThisFrame[119]) {
+		Shutdown();
+		return;
+	}
+
 	if (m_keyDownThisFrame['T']) {
 		m_isSlowDown = true;
 	}
@@ -48,8 +53,14 @@ void App::RunFrame()
 		debugDrawTrigger = false;
 	}
 
-	if (m_keyDownThisFrame['O']) {
-		m_singleStep = true;
+	if (m_keyDownThisFrame['N'] && playerRespawTrigger) {
+		m_isPlayerRespawn = true;
+		playerRespawTrigger = false;
+	}
+
+	if (m_keyDownThisFrame['I'] && asteroidRespawTrigger) {
+		m_isAsteroidRespawn = true;
+		asteroidRespawTrigger = false;
 	}
 
 	if (m_keyDownThisFrame['Q']) {
@@ -81,6 +92,14 @@ void App::RunFrame()
 
 	if (m_keyUpThisFrame[32] && !firingTrigger && !m_isFiring) {
 		firingTrigger = true;
+	}
+
+	if (m_keyUpThisFrame['N'] && !playerRespawTrigger && !m_isPlayerRespawn) {
+		playerRespawTrigger = true;
+	}
+
+	if (m_keyUpThisFrame['I'] && !asteroidRespawTrigger && !m_isAsteroidRespawn) {
+		asteroidRespawTrigger = true;
 	}
 
 	if (m_keyUpThisFrame[112] && !debugDrawTrigger) {
@@ -133,6 +152,13 @@ void App::RunFrame()
 //-----------------------------------------------------------------------------------------------
 bool App::IsQuitting() {
 	return m_isQuitting;
+}
+
+//-----------------------------------------------------------------------------------------------
+void App::Shutdown()
+{
+	delete g_app;
+	g_app = new App();
 }
 
 //-----------------------------------------------------------------------------------------------
