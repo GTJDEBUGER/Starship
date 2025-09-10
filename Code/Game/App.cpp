@@ -43,6 +43,10 @@ void App::RunFrame()
 		pauseTrigger = false;
 	}
 
+	if (m_keyDownThisFrame['O']) {
+		m_singleStep = true;
+	}
+
 	if (m_keyDownThisFrame[32] && firingTrigger) {
 		m_isFiring = true;
 		firingTrigger = false;
