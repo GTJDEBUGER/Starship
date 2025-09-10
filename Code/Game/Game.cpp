@@ -1,3 +1,5 @@
+#include <direct.h> 
+
 #include "Game.hpp"
 #include "GameCommon.hpp"
 #include "PlayerShip.hpp"
@@ -92,9 +94,7 @@ void Game::Update(float deltaSeconds)
 														  m_player->GetForwardVector());
 		}
 		else {
-			if (IsDebuggerAvailable()) {
-				SystemDialogue_Okay("Run out bullets!", "Maximum of 20 Bullets alive at once.", MsgSeverityLevel::FATAL);
-			}
+			ERROR_RECOVERABLE("Run out bullets!")
 		}
 
 		g_app->m_isFiring = false;
@@ -117,9 +117,7 @@ void Game::Update(float deltaSeconds)
 			m_asteroids[freeAsteroidIndex] = new Asteroid(this);
 		}
 		else {
-			if (IsDebuggerAvailable()) {
-				SystemDialogue_Okay("Run out asteroids!", "Maximum of 12 asteroids alive at once.", MsgSeverityLevel::FATAL);
-			}
+			ERROR_RECOVERABLE("Run out asteroids!")
 		}
 
 		g_app->m_isAsteroidRespawn = false;
@@ -129,6 +127,7 @@ void Game::Update(float deltaSeconds)
 	if (g_app->m_isPlayerRespawn && m_player->m_isDead) {
 		m_player->m_position = Vec2(WORLD_CENTER_X, WORLD_CENTER_Y);
 		m_player->m_velocity = Vec2(0, 0);
+		m_player->m_acceleration = 0;
 		m_player->m_orientationDegrees = 0.f;
 		m_player->m_isDead = false;
 
