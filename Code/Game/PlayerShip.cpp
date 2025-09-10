@@ -74,7 +74,9 @@ void PlayerShip::Update(float deltaSeconds)
 	m_orientationDegrees += m_rotationSpeed * deltaSeconds;
 
 	//--------------------------------------------------------------------------------
-	lastFramePosition = m_position;
+	if (!IsOffScreen()) {
+		lastFramePosition = m_position;
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
