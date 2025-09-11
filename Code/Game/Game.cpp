@@ -160,26 +160,28 @@ void Game::Render() const
 
 	// Debug Draw
 	if (g_app->m_isDebugDraw) {
+		float drawThickness = 0.2f;
+
 		if (m_player != nullptr && !m_player->m_isDead)
 		{
-			DebugDrawRing(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-			DebugDrawRing(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255));
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255));
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255));
+			DebugDrawRing(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
+			DebugDrawRing(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
+			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 		}
 
 		for(int i = 0; i < MAX_ASTEROIDS; i++)
 		{
 			if (m_asteroids[i] != nullptr) {
-				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(CosDegrees(m_asteroids[i]->m_orientationDegrees), SinDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
-				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
-				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255));
+				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
+				DebugDrawRing(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(CosDegrees(m_asteroids[i]->m_orientationDegrees), SinDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
+				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 
 				if (m_player != nullptr && !m_player->m_isDead) {
-					DebugDrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+					DebugDrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
 				}
 
 			}
@@ -187,14 +189,14 @@ void Game::Render() const
 
 		for (int i = 0; i < MAX_BULLETS; i++) {
 			if (m_bullets[i] != nullptr) {
-				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255));
-				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255));
-				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(CosDegrees(m_bullets[i]->m_orientationDegrees), SinDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255));
-				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255));
-				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255));
+				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
+				DebugDrawRing(m_bullets[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(CosDegrees(m_bullets[i]->m_orientationDegrees), SinDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
+				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 
 				if (m_player != nullptr && !m_player->m_isDead) {
-					DebugDrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255));
+					DebugDrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
 				}
 			}
 		}

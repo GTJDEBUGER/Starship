@@ -1,6 +1,5 @@
 #pragma once
 #include "Entity.hpp"
-#include "Engine/Core/Vertex.hpp"
 #include "Asteroid.hpp"
 
 //-----------------------------------------------------------------------------------------------

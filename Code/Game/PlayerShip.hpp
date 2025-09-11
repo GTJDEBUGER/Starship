@@ -1,8 +1,6 @@
 #pragma once
-#include "Game.hpp"
 #include "Entity.hpp"
-#include "Engine/Math/Vec2.hpp"
-#include "Engine/Core/Vertex.hpp"
+#include "Asteroid.hpp"
 
 //-----------------------------------------------------------------------------------------------
 class PlayerShip : public Entity {

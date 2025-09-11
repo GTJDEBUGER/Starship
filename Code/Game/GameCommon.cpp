@@ -1,35 +1,45 @@
-#define WIN32_LEAN_AND_MEAN		
-#include <windows.h>
-#include <gl/gl.h>
-#pragma comment( lib, "opengl32" )
-
 #include "GameCommon.hpp"
 #include "Engine/Math/Vec2.hpp"
 #include "Engine/Core/Rgba8.hpp"
 #include "Engine/Math/MathUtils.hpp"
+#include "Engine/Core/Vertex.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 
 //-----------------------------------------------------------------------------------------------
-void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor)
+void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thickness)
 {
-	glBegin(GL_LINES);
-	glColor4ub(lineCOlor.r, lineCOlor.g, lineCOlor.b, lineCOlor.a);
-	glVertex2f(startPosition.x, startPosition.y);
-	glVertex2f(endPosition.x, endPosition.y);
-	glEnd();
+	Vec2 leftDir = (endPosition - startPosition).GetRotatedBy90Degrees().GetNormalized();
+
+	Vertex topLeft(startPosition.GetVec3() + (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex downLeft(startPosition.GetVec3() - (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex topRight(endPosition.GetVec3() + (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex downRight(endPosition.GetVec3() - (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+
+	Vertex tempMesh[6];
+	tempMesh[0] = topLeft;
+	tempMesh[1] = topRight;
+	tempMesh[2] = downLeft;
+	tempMesh[3] = downLeft;
+	tempMesh[4] = topRight;
+	tempMesh[5] = downRight;
+
+	g_engine->m_renderer->DrawVertexArray(6, tempMesh);
 }
 
 //-----------------------------------------------------------------------------------------------
-void DebugDrawRing(Vec2 centre, float radius, Rgba8 circleColor)
+void DebugDrawRing(Vec2 centre, float radius, Rgba8 ringColor, float thickness)
 {
-	const int NUM_SEGMENTS = 32;
-	const float ANGLE_INCREMENT = 360.f / (float)NUM_SEGMENTS;
-	glBegin(GL_LINE_LOOP);
-	glColor4ub(circleColor.r, circleColor.g, circleColor.b, circleColor.a);
-	for (int i = 0; i < NUM_SEGMENTS; i++) {
-		float angleDegrees = i * ANGLE_INCREMENT;
+	float angleIncrement = 360.f / static_cast<float>(DEBUG_DRAWRING_SUBDIVISION); 
+	Vec2 vertexPos[DEBUG_DRAWRING_SUBDIVISION];
+	for (int i = 0; i < DEBUG_DRAWRING_SUBDIVISION; i++) {
+		float angleDegrees = i * angleIncrement;
 		float x = centre.x + radius * CosDegrees(angleDegrees);
 		float y = centre.y + radius * SinDegrees(angleDegrees);
-		glVertex2f(x, y);
+		vertexPos[i] = Vec2(x, y);
+		if (i > 0) {
+			DebugDrawLine(vertexPos[i], vertexPos[i - 1], ringColor, thickness);
+		}
 	}
-	glEnd();
+	DebugDrawLine(vertexPos[0], vertexPos[DEBUG_DRAWRING_SUBDIVISION-1], ringColor, thickness);
 }
