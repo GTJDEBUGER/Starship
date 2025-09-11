@@ -1,6 +1,6 @@
 #pragma once
-#include "Entity.hpp"
-#include "Asteroid.hpp"
+#include "Game/Entity.hpp"
+#include "Game/Asteroid.hpp"
 
 //-----------------------------------------------------------------------------------------------
 class PlayerShip : public Entity {

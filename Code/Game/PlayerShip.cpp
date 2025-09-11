@@ -1,10 +1,11 @@
-#include "PlayerShip.hpp"
-#include "GameCommon.hpp"
-#include "Asteroid.hpp"
-#include "Game.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+
+#include "Game/PlayerShip.hpp"
+#include "Game/GameCommon.hpp"
+#include "Game/Asteroid.hpp"
+#include "Game/Game.hpp"
 
 //-----------------------------------------------------------------------------------------------
 PlayerShip::PlayerShip(Game* game)

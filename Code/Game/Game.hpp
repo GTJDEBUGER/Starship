@@ -1,5 +1,5 @@
 #pragma once
-#include "GameCommon.hpp"
+#include "Game/GameCommon.hpp"
 
 class PlayerShip;
 class Asteroid;

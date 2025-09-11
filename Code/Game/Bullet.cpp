@@ -1,9 +1,10 @@
-#include "Bullet.hpp"
-#include "GameCommon.hpp"
-#include "Game.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+
+#include "Game/Bullet.hpp"
+#include "Game/GameCommon.hpp"
+#include "Game/Game.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)

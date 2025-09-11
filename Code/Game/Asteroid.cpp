@@ -1,10 +1,11 @@
-#include "Asteroid.hpp"
-#include "GameCommon.hpp"
-#include "Game.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+
+#include "Game/Asteroid.hpp"
+#include "Game/GameCommon.hpp"
+#include "Game/Game.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Asteroid::Asteroid(Game* game)

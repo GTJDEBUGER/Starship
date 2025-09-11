@@ -1,10 +1,11 @@
-#include "GameCommon.hpp"
 #include "Engine/Math/Vec2.hpp"
 #include "Engine/Core/Rgba8.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Vertex.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+
+#include "Game/GameCommon.hpp"
 
 //-----------------------------------------------------------------------------------------------
 void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thickness)

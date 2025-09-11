@@ -1,7 +1,7 @@
 #include "Entity.hpp"
 #include "GameCommon.hpp"
 #include "Engine/Math/MathUtils.hpp"
-#include "Game.hpp"
+#include "Game/Game.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Entity ::Entity(Game* game, Vec2 startPos)
