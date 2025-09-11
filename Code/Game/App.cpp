@@ -75,13 +75,11 @@ void App::RunFrame()
 		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
 	}
 
-	if (m_keyDownThisFrame['S'] && m_keyDownThisFrame['F']) {
-		m_game->m_player->m_rotationSpeed = 0;
-	}
-	else if (m_keyDownThisFrame['F']) {
+	if (m_keyDownThisFrame['F'] && !m_keyDownThisFrame['S']) {
 		m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
 	}
-	else if (m_keyDownThisFrame['S']) {
+
+	if (m_keyDownThisFrame['S'] && !m_keyDownThisFrame['F']) {
 		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
 	}
 
@@ -114,10 +112,13 @@ void App::RunFrame()
 		m_game->m_player->m_acceleration = 0;
 	}
 
-	if (m_keyUpThisFrame['S'] || m_keyUpThisFrame['F']) {
+	if ((m_keyUpThisFrame['S'] || m_keyUpThisFrame['F']) || (m_keyDownThisFrame['S'] && m_keyDownThisFrame['F'])) {
 		m_game->m_player->m_rotationSpeed = 0;
 	}
 
+	for (int i = 0; i < 256; i++) {
+		m_keyUpThisFrame[i] = false;
+	}
 
 	//-------------------------------------------------------------------------------------------
 	float deltaSeconds = 1.f / 60.f;
@@ -146,11 +147,6 @@ void App::RunFrame()
 		g_engine->m_renderer->EndCamera(*m_camera);
 	g_engine->EndFrame();
 
-	//-------------------------------------------------------------------------------------------
-	for (int i = 0; i < 256; i++) {
-		m_keyDownThisFrame[i] = false;
-		m_keyUpThisFrame[i] = false;
-	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -175,4 +171,5 @@ void App::OnKeyDown(unsigned char keyCode)
 void App::OnKeyUp(unsigned char keyCode)
 {
 	m_keyUpThisFrame[keyCode] = true;
+	m_keyDownThisFrame[keyCode] = false;
 }
