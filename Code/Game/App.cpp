@@ -31,6 +31,7 @@ void App::RunFrame()
 	//-------------------------------------------------------------------------------------------
 	HandlePlayerInput();
 	if (m_isShutdown) {
+		m_isShutdown = false;
 		return;
 	}
 
@@ -91,6 +92,7 @@ void App::HandlePlayerInput(){
 	if (IsKeyDownThisFrame(119)) { //F8
 		Shutdown();
 		m_isShutdown = true;
+		return;
 	}
 
 	if (IsKeyHeldThisFrame('T') || IsKeyDownThisFrame('T')) {
