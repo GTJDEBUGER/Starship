@@ -5,6 +5,7 @@
 #include "Game/Bullet.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Game.hpp"
+#include "Game/Asteroid.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)

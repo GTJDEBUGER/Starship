@@ -29,95 +29,9 @@ App::~App()
 void App::RunFrame()
 {
 	//-------------------------------------------------------------------------------------------
-	if (m_keyDownThisFrame[119]) {
-		Shutdown();
+	HandlePlayerInput();
+	if (m_isShutdown) {
 		return;
-	}
-
-	if (m_keyDownThisFrame['T']) {
-		m_isSlowDown = true;
-	}
-
-	if (m_keyDownThisFrame['P'] && pauseTrigger) {
-		m_isPause = !m_isPause;
-		pauseTrigger = false;
-	}
-
-	if (m_keyDownThisFrame['O']) {
-		m_singleStep = true;
-	}
-
-	if (m_keyDownThisFrame[32] && firingTrigger) {
-		m_isFiring = true;
-		firingTrigger = false;
-	}
-
-	if (m_keyDownThisFrame[112] && debugDrawTrigger) {
-		m_isDebugDraw = !m_isDebugDraw;
-		debugDrawTrigger = false;
-	}
-
-	if (m_keyDownThisFrame['N'] && playerRespawTrigger) {
-		m_isPlayerRespawn = true;
-		playerRespawTrigger = false;
-	}
-
-	if (m_keyDownThisFrame['I'] && asteroidRespawTrigger) {
-		m_isAsteroidRespawn = true;
-		asteroidRespawTrigger = false;
-	}
-
-	if (m_keyDownThisFrame['Q']) {
-		m_isQuitting = true;
-	}
-
-	if (m_keyDownThisFrame['E'] && !m_keyUpThisFrame['E']) {
-		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
-	}
-
-	if (m_keyDownThisFrame['F'] && !m_keyDownThisFrame['S']) {
-		m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
-	}
-
-	if (m_keyDownThisFrame['S'] && !m_keyDownThisFrame['F']) {
-		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
-	}
-
-
-	if (m_keyUpThisFrame['T']) {
-		m_isSlowDown = false;
-	}
-
-	if (m_keyUpThisFrame['P'] && !pauseTrigger) {
-		pauseTrigger = true;
-	}
-
-	if (m_keyUpThisFrame[32] && !firingTrigger && !m_isFiring) {
-		firingTrigger = true;
-	}
-
-	if (m_keyUpThisFrame['N'] && !playerRespawTrigger && !m_isPlayerRespawn) {
-		playerRespawTrigger = true;
-	}
-
-	if (m_keyUpThisFrame['I'] && !asteroidRespawTrigger && !m_isAsteroidRespawn) {
-		asteroidRespawTrigger = true;
-	}
-
-	if (m_keyUpThisFrame[112] && !debugDrawTrigger) {
-		debugDrawTrigger = true;
-	}
-
-	if (m_keyUpThisFrame['E']) {
-		m_game->m_player->m_acceleration = 0;
-	}
-
-	if ((m_keyUpThisFrame['S'] || m_keyUpThisFrame['F']) || (m_keyDownThisFrame['S'] && m_keyDownThisFrame['F'])) {
-		m_game->m_player->m_rotationSpeed = 0;
-	}
-
-	for (int i = 0; i < 256; i++) {
-		m_keyUpThisFrame[i] = false;
 	}
 
 	//-------------------------------------------------------------------------------------------
@@ -136,7 +50,6 @@ void App::RunFrame()
 		deltaSeconds = originalDeltaSeconds;
 
 		m_isPause = true;
-		pauseTrigger = true;
 	}
 
 	//-------------------------------------------------------------------------------------------
@@ -170,6 +83,90 @@ void App::OnKeyDown(unsigned char keyCode)
 //-----------------------------------------------------------------------------------------------
 void App::OnKeyUp(unsigned char keyCode)
 {
-	m_keyUpThisFrame[keyCode] = true;
 	m_keyDownThisFrame[keyCode] = false;
+}
+
+//-----------------------------------------------------------------------------------------------
+void App::HandlePlayerInput(){
+	if (IsKeyDownThisFrame(119)) { //F8
+		Shutdown();
+		m_isShutdown = true;
+	}
+
+	if (IsKeyHeldThisFrame('T') || IsKeyDownThisFrame('T')) {
+		m_isSlowDown = true;
+	}
+
+	if (IsKeyDownThisFrame('P')) {
+		m_isPause = !m_isPause;
+	}
+
+	if (IsKeyDownThisFrame('O')) {
+		m_singleStep = true;
+	}
+
+	if (IsKeyDownThisFrame(32)) {
+		m_isFiring = true;
+	}
+
+	if (IsKeyDownThisFrame(112)) {
+		m_isDebugDraw = !m_isDebugDraw;
+	}
+
+	if (IsKeyDownThisFrame('N')) {
+		m_isPlayerRespawn = true;
+	}
+
+	if (IsKeyDownThisFrame('I')) {
+		m_isAsteroidRespawn = true;
+	}
+
+	if (IsKeyDownThisFrame('Q')) {
+		m_isQuitting = true;
+	}
+
+	if (IsKeyHeldThisFrame('E') || IsKeyDownThisFrame('E')) {
+		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
+	}
+
+	if ((IsKeyHeldThisFrame('F') || IsKeyDownThisFrame('F')) && !(IsKeyHeldThisFrame('S') || IsKeyDownThisFrame('S'))) {
+		m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
+	}
+
+	if ((IsKeyHeldThisFrame('S') || IsKeyDownThisFrame('S')) && !(IsKeyHeldThisFrame('F') || IsKeyDownThisFrame('F'))) {
+		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
+	}
+
+
+	if (IsKeyUpThisFrame('T')) {
+		m_isSlowDown = false;
+	}
+
+	if (IsKeyUpThisFrame('E')) {
+		m_game->m_player->m_acceleration = 0;
+	}
+
+	if ((IsKeyUpThisFrame('S') || IsKeyUpThisFrame('F')) || (IsKeyHeldThisFrame('F') && IsKeyHeldThisFrame('S'))) {
+		m_game->m_player->m_rotationSpeed = 0;
+	}
+
+	//------------------------------------------------------------------------------------------
+	for (int i = 0; i < 256; i++) {
+		m_keyDownLastFrame[i] = m_keyDownThisFrame[i];
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+bool App::IsKeyDownThisFrame(unsigned char keyCode) {
+	return m_keyDownThisFrame[keyCode] && !m_keyDownLastFrame[keyCode];
+}
+
+//-----------------------------------------------------------------------------------------------
+bool App::IsKeyHeldThisFrame(unsigned char keyCode) {
+	return m_keyDownThisFrame[keyCode] && m_keyDownLastFrame[keyCode];
+}
+
+//-----------------------------------------------------------------------------------------------
+bool App::IsKeyUpThisFrame(unsigned char keyCode) {
+	return !m_keyDownThisFrame[keyCode] && m_keyDownLastFrame[keyCode];
 }

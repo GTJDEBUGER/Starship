@@ -91,7 +91,7 @@ void Game::Update(float deltaSeconds)
 		}
 
 		if (freeBulletIndex > -1) {
-			m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector() *2, 
+			m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector(), 
 														  m_player->GetForwardVector());
 		}
 		else {
@@ -142,10 +142,6 @@ void Game::Update(float deltaSeconds)
 //-----------------------------------------------------------------------------------------------
 void Game::Render() const
 {
-	if (!m_player->m_isDead) {
-		m_player->Render();
-	}
-
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
 	{
 		if (m_asteroids[i] != nullptr) {
@@ -157,6 +153,10 @@ void Game::Render() const
 		if (m_bullets[i] != nullptr) {
 			m_bullets[i]->Render();
 		}
+	}
+
+	if (!m_player->m_isDead) {
+		m_player->Render();
 	}
 
 	// Debug Draw

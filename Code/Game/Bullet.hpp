@@ -1,6 +1,7 @@
 #pragma once
 #include "Game/Entity.hpp"
-#include "Game/Asteroid.hpp"
+
+class Asteroid;
 
 //-----------------------------------------------------------------------------------------------
 class Bullet : public Entity {
