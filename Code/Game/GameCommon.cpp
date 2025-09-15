@@ -10,12 +10,13 @@
 //-----------------------------------------------------------------------------------------------
 void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thickness)
 {
-	Vec2 leftDir = (endPosition - startPosition).GetRotatedBy90Degrees().GetNormalized();
+	Vec2 forwardDir = (endPosition - startPosition).GetNormalized();
+	Vec2 leftDir = forwardDir.GetRotatedBy90Degrees().GetNormalized();
 
-	Vertex topLeft(startPosition.GetVec3() + (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
-	Vertex downLeft(startPosition.GetVec3() - (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
-	Vertex topRight(endPosition.GetVec3() + (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
-	Vertex downRight(endPosition.GetVec3() - (leftDir * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex topLeft(startPosition.GetVec3() + ((leftDir-forwardDir) * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex downLeft(startPosition.GetVec3() - ((leftDir + forwardDir) * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex topRight(endPosition.GetVec3() + ((leftDir + forwardDir) * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
+	Vertex downRight(endPosition.GetVec3() - ((leftDir - forwardDir) * (thickness / 2.f)).GetVec3(), lineCOlor, Vec2(0, 0));
 
 	Vertex tempMesh[6];
 	tempMesh[0] = topLeft;

@@ -81,21 +81,23 @@ void Game::Update(float deltaSeconds)
 	}
 
 	//-----------------------------------------------------------------------------------------------
-	if (g_app->m_isFiring && !m_player->m_isDead) {
-		int freeBulletIndex = -1;
-		for (int i = 0; i < MAX_BULLETS; i++) {
-			if (m_bullets[i] == nullptr) {
-				freeBulletIndex = i;
-				break;
+	if (g_app->m_isFiring && m_player!=nullptr) {
+		if (!m_player->m_isDead) {
+			int freeBulletIndex = -1;
+			for (int i = 0; i < MAX_BULLETS; i++) {
+				if (m_bullets[i] == nullptr) {
+					freeBulletIndex = i;
+					break;
+				}
 			}
-		}
 
-		if (freeBulletIndex > -1) {
-			m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector(), 
-														  m_player->GetForwardVector());
-		}
-		else {
-			ERROR_RECOVERABLE("Run out bullets!")
+			if (freeBulletIndex > -1) {
+				m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector(),
+					m_player->GetForwardVector());
+			}
+			else {
+				ERROR_RECOVERABLE("Run out bullets!")
+			}
 		}
 
 		g_app->m_isFiring = false;
@@ -125,12 +127,15 @@ void Game::Update(float deltaSeconds)
 	}
 
 	//-----------------------------------------------------------------------------------------------
-	if (g_app->m_isPlayerRespawn && m_player->m_isDead) {
-		m_player->m_position = Vec2(WORLD_CENTER_X, WORLD_CENTER_Y);
-		m_player->m_velocity = Vec2(0, 0);
-		m_player->m_acceleration = 0;
-		m_player->m_orientationDegrees = 0.f;
-		m_player->m_isDead = false;
+	if (g_app->m_isPlayerRespawn) {
+		if (m_player != nullptr) {
+			if(m_player->m_isDead)
+			m_player->m_position = Vec2(WORLD_CENTER_X, WORLD_CENTER_Y);
+			m_player->m_velocity = Vec2(0, 0);
+			m_player->m_acceleration = 0;
+			m_player->m_orientationDegrees = 0.f;
+			m_player->m_isDead = false;
+		}
 
 		g_app->m_isPlayerRespawn = false;
 	}
@@ -161,7 +166,7 @@ void Game::Render() const
 
 	// Debug Draw
 	if (g_app->m_isDebugDraw) {
-		float drawThickness = 0.2f;
+		float drawThickness = .2f;
 
 		if (m_player != nullptr && !m_player->m_isDead)
 		{

@@ -14,6 +14,10 @@ App::App()
 	g_engine = new Engine();
 	m_game = new Game();
 	m_camera = new Camera(Vec2(0.f,0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+	for (int i = 0; i < 256; i++) {
+		m_keyDownLastFrame[i] = false;
+		m_keyDownThisFrame[i] = false;
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
