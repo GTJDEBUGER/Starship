@@ -2,6 +2,7 @@
 constexpr int NUM_STARTING_ASTEROIDS = 6;
 constexpr int MAX_ASTEROIDS = 12;
 constexpr int MAX_BULLETS = 20;
+constexpr int MAX_BEETLES = 10;
 constexpr int DEBUG_DRAWRING_SUBDIVISION = 32;
 constexpr float WORLD_SIZE_X = 200.f;
 constexpr float WORLD_SIZE_Y = 100.f;
@@ -18,6 +19,9 @@ constexpr float PLAYER_SHIP_ACCELERATION = 30.f;
 constexpr float PLAYER_SHIP_TURN_SPEED = 300.f;
 constexpr float PLAYER_SHIP_PHYSICS_RADIUS = 1.75f;
 constexpr float PLAYER_SHIP_COSMETIC_RADIUS = 2.25f;
+constexpr float ENEMY_BEETLE_SPEED = 9.f;
+constexpr float ENEMY_BEETLE_PHYSICS_RADIUS = 1.75f;
+constexpr float ENEMY_BEETLE_COSMETIC_RADIUS = 2.25f;
 
 struct Vec2;
 struct Rgba8;

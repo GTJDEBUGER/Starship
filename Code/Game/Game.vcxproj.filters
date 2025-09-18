@@ -34,6 +34,9 @@
     <ClCompile Include="Asteroid.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="BeetleEnemy.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PlayerShip.hpp">
@@ -55,6 +58,9 @@
       <Filter>Gameplay</Filter>
     </ClInclude>
     <ClInclude Include="Asteroid.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="BeetleEnemy.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>

@@ -40,6 +40,16 @@ void App::RunFrame()
 	}
 
 	//-------------------------------------------------------------------------------------------
+	g_engine->BeginFrame();	
+		Update();
+		Render();
+	g_engine->EndFrame();
+
+}
+
+//-----------------------------------------------------------------------------------------------
+void App::Update() {
+	//-------------------------------------------------------------------------------------------
 	float deltaSeconds = 1.f / 60.f;
 
 	float originalDeltaSeconds = deltaSeconds;
@@ -58,13 +68,12 @@ void App::RunFrame()
 	}
 
 	//-------------------------------------------------------------------------------------------
-	g_engine->BeginFrame();
-		g_engine->m_renderer->BeginCamera(*m_camera);
-			m_game->Update(deltaSeconds);
-			m_game->Render();
-		g_engine->m_renderer->EndCamera(*m_camera);
-	g_engine->EndFrame();
+	m_game->Update(deltaSeconds);
+}
 
+//-----------------------------------------------------------------------------------------------
+void App::Render() {
+	m_game->Render();
 }
 
 //-----------------------------------------------------------------------------------------------

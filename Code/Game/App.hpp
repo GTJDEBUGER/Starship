@@ -13,8 +13,11 @@ public:
 	App();
 	~App();
 	void RunFrame();
+	void Update();
+	void Render();
 	bool IsQuitting();
 	void Shutdown();
+
 	void OnKeyDown(unsigned char keyCode);
 	void OnKeyUp(unsigned char keyCode);
 	bool IsKeyDownThisFrame(unsigned char keycode);

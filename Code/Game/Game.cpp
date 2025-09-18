@@ -11,6 +11,7 @@
 #include "Game/PlayerShip.hpp"
 #include "Game/Asteroid.hpp"
 #include "Game/Bullet.hpp"
+#include "Game/BeetleEnemy.hpp"
 #include "Game/App.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -25,10 +26,11 @@ Game::Game()
 		m_bullets[i] = nullptr;
 	}
 
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < NUM_STARTING_ASTEROIDS; i++) {
 		m_asteroids[i] = new Asteroid(this);
 	}
 	m_player = new PlayerShip(this);
+	m_beetleEnemy[0] = new BeetleEnemy(this);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -48,6 +50,13 @@ Game::~Game()
 		if (m_bullets[i] != nullptr) {
 			delete m_bullets[i];
 			m_bullets[i] = nullptr;
+		}
+	}
+	for (int i = 0; i < MAX_BEETLES; i++)
+	{
+		if (m_beetleEnemy[i] != nullptr) {
+			delete m_beetleEnemy[i];
+			m_beetleEnemy[i] = nullptr;
 		}
 	}
 }
@@ -76,6 +85,16 @@ void Game::Update(float deltaSeconds)
 			if (m_bullets[i]->m_isDead) {
 				delete m_bullets[i];
 				m_bullets[i] = nullptr;
+			}
+		}
+	}
+	for (int i = 0; i < MAX_BEETLES; i++)
+	{
+		if (m_beetleEnemy[i] != nullptr) {
+			m_beetleEnemy[i]->Update(deltaSeconds);
+			if (m_beetleEnemy[i]->m_isDead) {
+				delete m_beetleEnemy[i];
+				m_beetleEnemy[i] = nullptr;
 			}
 		}
 	}
@@ -159,6 +178,12 @@ void Game::Render() const
 			m_bullets[i]->Render();
 		}
 	}
+	for (int i = 0; i < MAX_BEETLES; i++)
+	{
+		if (m_beetleEnemy[i] != nullptr) {
+			m_beetleEnemy[i]->Render();
+		}
+	}
 
 	if (!m_player->m_isDead) {
 		m_player->Render();
@@ -168,14 +193,11 @@ void Game::Render() const
 	if (g_app->m_isDebugDraw) {
 		float drawThickness = .2f;
 
-		if (m_player != nullptr && !m_player->m_isDead)
-		{
-			DebugDrawRing(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
-			DebugDrawRing(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
-			DebugDrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
-		}
+		DebugDrawRing(m_player->m_position, PLAYER_SHIP_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
+		DebugDrawRing(m_player->m_position, PLAYER_SHIP_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
+		DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector() * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
+		DebugDrawLine(m_player->m_position, m_player->m_position + m_player->GetForwardVector().GetRotatedBy90Degrees() * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
+		DebugDrawLine(m_player->m_position, m_player->m_position + m_player->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 
 		for(int i = 0; i < MAX_ASTEROIDS; i++)
 		{
@@ -186,10 +208,7 @@ void Game::Render() const
 				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + Vec2(-SinDegrees(m_asteroids[i]->m_orientationDegrees), CosDegrees(m_asteroids[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_asteroids[i]->m_position, m_asteroids[i]->m_position + m_asteroids[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 
-				if (m_player != nullptr && !m_player->m_isDead) {
-					DebugDrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
-				}
-
+				DebugDrawLine(m_asteroids[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
 			}
 		}
 
@@ -201,9 +220,19 @@ void Game::Render() const
 				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + Vec2(-SinDegrees(m_bullets[i]->m_orientationDegrees), CosDegrees(m_bullets[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_bullets[i]->m_position, m_bullets[i]->m_position + m_bullets[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
 
-				if (m_player != nullptr && !m_player->m_isDead) {
-					DebugDrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
-				}
+				DebugDrawLine(m_bullets[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
+			}
+		}
+
+		for (int i = 0; i < MAX_BEETLES; i++) {
+			if (m_beetleEnemy[i] != nullptr) {
+				DebugDrawRing(m_beetleEnemy[i]->m_position, ASTEROID_COSMETIC_RADIUS, Rgba8(255, 0, 255, 255), drawThickness);
+				DebugDrawRing(m_beetleEnemy[i]->m_position, ASTEROID_PHYSICS_RADIUS, Rgba8(0, 255, 255, 255), drawThickness);
+				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + Vec2(CosDegrees(m_beetleEnemy[i]->m_orientationDegrees), SinDegrees(m_beetleEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
+				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + Vec2(-SinDegrees(m_beetleEnemy[i]->m_orientationDegrees), CosDegrees(m_beetleEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
+				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + m_beetleEnemy[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
+
+				DebugDrawLine(m_beetleEnemy[i]->m_position, m_player->m_position, Rgba8(50, 50, 50, 255), drawThickness);
 			}
 		}
 	}
