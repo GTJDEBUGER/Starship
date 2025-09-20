@@ -37,6 +37,12 @@
     <ClCompile Include="BeetleEnemy.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="WaspEnemy.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="Debris.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PlayerShip.hpp">
@@ -61,6 +67,12 @@
       <Filter>Gameplay</Filter>
     </ClInclude>
     <ClInclude Include="BeetleEnemy.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="WaspEnemy.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="Debris.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>

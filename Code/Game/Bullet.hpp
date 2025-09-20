@@ -12,9 +12,15 @@ public:
 	void Render() const override;
 	void Die() override;
 
-	bool IsCollidingWithAsteroid(Asteroid* asteroid);
+	static void GetLocalMesh(int vertexNum, Vertex* mesh);
 
 private:
-	Vertex m_localMesh[6];
+	void BurstDebris(int numMin, int numMax, Vec2 burstDirection,
+		float burstAngle, Rgba8 color, float scale);
+
+private:
 	float m_lifeTime;
+	static const int m_vertexNum = 6;
+	int m_debrisNumMin = 1;
+	int m_debrisNumMax = 3;
 };

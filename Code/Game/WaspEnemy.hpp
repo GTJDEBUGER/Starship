@@ -2,10 +2,10 @@
 #include "Game/Entity.hpp"
 
 //-----------------------------------------------------------------------------------------------
-class BeetleEnemy : public Entity {
+class WaspEnemy : public Entity {
 public:
-	BeetleEnemy(Game* game);
-	~BeetleEnemy() override = default;
+	WaspEnemy(Game* game);
+	~WaspEnemy() override = default;
 	void Update(float deltaSeconds) override;
 	void Render() const override;
 	void Die() override;
@@ -15,7 +15,7 @@ public:
 
 public:
 	float m_rotationSpeed = 0;
-	static const int m_vertexNum = 63;
+	static const int m_vertexNum = 126;
 
 private:
 	void BurstDebris(int numMin, int numMax, Vec2 burstDirection,

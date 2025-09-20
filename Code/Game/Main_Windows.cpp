@@ -26,7 +26,7 @@ constexpr float CLIENT_ASPECT = 2.f; // By the Assignment 1 requirements, this s
 
 //-----------------------------------------------------------------------------------------------
 // #SD1ToDo: We will move each of these items to its proper place, once that place is established later on
-char const* APP_NAME = "SD1-A02: Starship Prototype";	// ...becomes ??? (Change this per project!)
+char const* APP_NAME = "SD1-A03: Starship Prototype";	// ...becomes ??? (Change this per project!)
 extern HWND g_hWnd = nullptr;
 extern HDC g_displayDeviceContext = nullptr;
 

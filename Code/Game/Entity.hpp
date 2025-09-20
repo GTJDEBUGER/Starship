@@ -1,6 +1,8 @@
 #pragma once
 #include "Engine/Math/Vec2.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Core/Vertex.hpp"
+#include "Game/GameCommon.hpp"
 
 class Game;
 
@@ -17,6 +19,8 @@ public:
 	bool IsOffScreen() const;
 	Vec2 GetForwardVector() const;
 
+	void SetPositionRandomOffscreen();
+
 public:
 	Vec2 m_position;
 	Vec2 m_velocity;
@@ -28,4 +32,6 @@ public:
 	bool m_isDead;
 	bool m_isGarbage;
 	Game* m_game = nullptr;
+	Vertex* m_localMesh = nullptr;
+	RandomNumberGenerator m_randomGenerator;
 };

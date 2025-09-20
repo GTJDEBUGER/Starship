@@ -12,13 +12,20 @@ public:
 	void Render() const override;
 	void Die() override;
 
-	bool IsCollidingWithAsteroid(Asteroid* asteroid);
+	static void GetLocalMesh(int vertexNum, Vertex* mesh);
 
 public:
 	float m_acceleration = 0;
 	float m_rotationSpeed = 0;
+	static const int m_vertexNum = 15;
 
 private:
-	Vertex m_localMesh[15];
-	Vec2 lastFramePosition;
+	void BounceCheck();
+	void BurstDebris(int numMin, int numMax, Vec2 burstDirection,
+		float burstAngle, Rgba8 color, float scale);
+
+private:
+	Vec2 m_lastFramePosition;
+	int m_debrisNumMin = 5;
+	int m_debrisNumMax = 30;
 };

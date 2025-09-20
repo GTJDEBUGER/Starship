@@ -1,8 +1,11 @@
 #pragma once
 constexpr int NUM_STARTING_ASTEROIDS = 6;
-constexpr int MAX_ASTEROIDS = 12;
+constexpr int MAX_ASTEROIDS = 30;
 constexpr int MAX_BULLETS = 20;
-constexpr int MAX_BEETLES = 10;
+constexpr int MAX_BEETLES = 20;
+constexpr int MAX_WASPS = 20;
+constexpr int MAX_DEBRIS = 200;
+constexpr int MAX_DEBRIS_SUBDIVISION = 8;
 constexpr int DEBUG_DRAWRING_SUBDIVISION = 32;
 constexpr float WORLD_SIZE_X = 200.f;
 constexpr float WORLD_SIZE_Y = 100.f;
@@ -22,6 +25,12 @@ constexpr float PLAYER_SHIP_COSMETIC_RADIUS = 2.25f;
 constexpr float ENEMY_BEETLE_SPEED = 9.f;
 constexpr float ENEMY_BEETLE_PHYSICS_RADIUS = 1.75f;
 constexpr float ENEMY_BEETLE_COSMETIC_RADIUS = 2.25f;
+constexpr float ENEMY_WASP_ACCELERATION = 10.f;
+constexpr float ENEMY_WASP_MAX_SPEED = 30.f;
+constexpr float ENEMY_WASP_PHYSICS_RADIUS = 1.75f;
+constexpr float ENEMY_WASP_COSMETIC_RADIUS = 2.25f;
+constexpr float DEBRIS_PHYSICS_RADIUS = 0.2f;
+constexpr float DEBRIS_COSMETIC_RADIUS = 1.2f;
 
 struct Vec2;
 struct Rgba8;

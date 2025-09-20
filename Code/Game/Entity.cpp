@@ -14,7 +14,8 @@ Entity ::Entity(Game* game, Vec2 startPos)
 	, m_cosmeticRadius(1.f)
 	, m_health(1)
 	, m_isDead(false)
-	, m_isGarbage(false) {
+	, m_isGarbage(false)
+	, m_localMesh(nullptr){
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -33,4 +34,26 @@ bool Entity::IsOffScreen() const {
 //-----------------------------------------------------------------------------------------------
 Vec2 Entity::GetForwardVector() const {
 	return Vec2(CosDegrees(m_orientationDegrees), SinDegrees(m_orientationDegrees));
+}
+
+//-----------------------------------------------------------------------------------------------
+void Entity::SetPositionRandomOffscreen() {
+	if (m_randomGenerator.RollRandomFloatZeroToOne() < 0.25f) {
+		m_position.x = 0 - m_cosmeticRadius;
+		m_position.y = m_randomGenerator.RollRandomFloatInRange(-m_cosmeticRadius, WORLD_SIZE_Y + m_cosmeticRadius);
+	}
+	else if (m_randomGenerator.RollRandomFloatZeroToOne() >= 0.25f &&
+		m_randomGenerator.RollRandomFloatZeroToOne() < 0.5f) {
+		m_position.x = WORLD_SIZE_X + m_cosmeticRadius;
+		m_position.y = m_randomGenerator.RollRandomFloatInRange(-m_cosmeticRadius, WORLD_SIZE_Y + m_cosmeticRadius);
+	}
+	else if (m_randomGenerator.RollRandomFloatZeroToOne() >= 0.5f &&
+		m_randomGenerator.RollRandomFloatZeroToOne() < 0.75f) {
+		m_position.y = 0 - m_cosmeticRadius;
+		m_position.x = m_randomGenerator.RollRandomFloatInRange(-m_cosmeticRadius, WORLD_SIZE_X + m_cosmeticRadius);
+	}
+	else {
+		m_position.y = WORLD_SIZE_Y + m_cosmeticRadius;
+		m_position.x = m_randomGenerator.RollRandomFloatInRange(-m_cosmeticRadius, WORLD_SIZE_X + m_cosmeticRadius);
+	}
 }

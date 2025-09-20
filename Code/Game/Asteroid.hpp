@@ -9,7 +9,18 @@ public:
 	void Update(float deltaSeconds) override;
 	void Render() const override;
 	void Die() override;
+	void CollideTest();
+
+	static void GetLocalMesh(int vertexNum, Vertex* mesh);
+
+public:
+	static const int m_vertexNum = 48;
 
 private:
-	Vertex m_localMesh[48];
+	void BurstDebris(int numMin, int numMax, Vec2 burstDirection,
+		float burstAngle, Rgba8 color, float scale);
+
+private:
+	int m_debrisNumMin = 3;
+	int m_debrisNumMax = 12;
 };
