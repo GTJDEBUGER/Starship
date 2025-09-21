@@ -20,7 +20,7 @@
 Game::Game()
 {
 	InitialObjectPools();
-	SetUpLevel(curLevelIndex);
+	SetUpLevel(m_curLevelIndex);
 	m_player = new PlayerShip(this);
 }
 
@@ -35,6 +35,13 @@ Game::~Game()
 //-----------------------------------------------------------------------------------------------
 void Game::Update(float deltaSeconds)
 {
+	//-----------------------------------------------------------------------------------------------
+	if (m_quitFlag) {
+		m_waitedTime += deltaSeconds;
+		if (m_waitedTime > m_delayTime) {
+			g_app->m_isAttractMode = true;
+		}
+	}
 	//-----------------------------------------------------------------------------------------------
 	if (m_player != nullptr && !m_player->m_isDead) {
 		m_player->Update(deltaSeconds);
@@ -53,7 +60,7 @@ void Game::Update(float deltaSeconds)
 //---------------------------------------------------------------------------------------------------
 void Game::Render() const
 {
-	g_engine->m_renderer->BeginCamera(*g_app->m_camera);
+	g_engine->m_renderer->BeginCamera(*g_app->m_gameCamera);
 
 	RenderPoolEntitys();
 
@@ -65,7 +72,9 @@ void Game::Render() const
 		RenderDebugThings();
 	}
 
-	g_engine->m_renderer->EndCamera(*g_app->m_camera);
+	RenderUI();
+
+	g_engine->m_renderer->EndCamera(*g_app->m_gameCamera);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -231,12 +240,13 @@ void Game::HandleRespawnAsteroidInput() {
 void Game::HandleRespawnPlayerInput() {
 	if (g_app->m_isPlayerRespawn) {
 		if (m_player != nullptr) {
-			if (m_player->m_isDead) {
+			if (m_player->m_isDead && m_player->m_health>0) {
 				m_player->m_position = Vec2(WORLD_CENTER_X, WORLD_CENTER_Y);
 				m_player->m_velocity = Vec2(0, 0);
 				m_player->m_acceleration = 0;
 				m_player->m_orientationDegrees = 0.f;
 				m_player->m_isDead = false;
+				m_player->m_health--;
 			}
 		}
 
@@ -390,7 +400,30 @@ void Game::CheckGotoNextLevel() {
 	}
 
 	if (flag) {
-		curLevelIndex++;
-		SetUpLevel(curLevelIndex);
+		m_curLevelIndex++;
+		if (m_curLevelIndex < sizeof(levels) / sizeof(GameLevel)) {
+			SetUpLevel(m_curLevelIndex);
+		}
+		else {
+			DelayQuit(2.f);
+		}
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUI() const {
+	Vertex worldMesh[PlayerShip::m_vertexNum];
+	for (int i = 0; i < m_player->m_health; i++) {
+		PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, worldMesh);
+		TransformVertexArrayXY3D(15, worldMesh, 1.f, 90.f, Vec2(PLAYER_SHIP_COSMETIC_RADIUS * (2*i+1), WORLD_SIZE_Y - PLAYER_SHIP_COSMETIC_RADIUS));
+		g_engine->m_renderer->DrawVertexArray(15, worldMesh);
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::DelayQuit(float delayTime) {
+	if (!m_quitFlag) {
+		m_delayTime = delayTime;
+		m_quitFlag = true;
 	}
 }

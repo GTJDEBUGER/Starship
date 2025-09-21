@@ -1,10 +1,13 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine//Renderer/Camera.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Math/MathUtils.hpp"
 #include "Game/App.hpp"
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/PlayerShip.hpp"
+#include "Game/BeetleEnemy.hpp"
+#include "Game/WaspEnemy.hpp"
 
 App* g_app = nullptr;
 
@@ -13,7 +16,8 @@ App::App()
 {
 	g_engine = new Engine();
 	m_game = new Game();
-	m_camera = new Camera(Vec2(0.f,0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+	m_gameCamera = new Camera(Vec2(0.f,0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+	m_UICamera = new Camera(Vec2(0.f, 0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
 	for (int i = 0; i < 256; i++) {
 		m_keyDownLastFrame[i] = false;
 		m_keyDownThisFrame[i] = false;
@@ -68,12 +72,19 @@ void App::Update() {
 	}
 
 	//-------------------------------------------------------------------------------------------
-	m_game->Update(deltaSeconds);
+	if (!m_isAttractMode) {
+		m_game->Update(deltaSeconds);
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
 void App::Render() {
-	m_game->Render();
+	if (!m_isAttractMode) {
+		m_game->Render();
+	}
+	else {
+		RenderAttractMode();
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -120,8 +131,16 @@ void App::HandlePlayerInput(){
 		m_singleStep = true;
 	}
 
-	if (IsKeyDownThisFrame(32)) {
-		m_isFiring = true;
+	if (IsKeyDownThisFrame(32)) { //SPACE
+		if (!m_isAttractMode) {
+			m_isFiring = true;
+		}
+		else {
+			m_isAttractMode = false;
+			delete m_game;
+			m_game = nullptr;
+			m_game = new Game();
+		}
 	}
 
 	if (IsKeyDownThisFrame(112)) {
@@ -136,8 +155,13 @@ void App::HandlePlayerInput(){
 		m_isAsteroidRespawn = true;
 	}
 
-	if (IsKeyDownThisFrame('Q')) {
-		m_isQuitting = true;
+	if (IsKeyDownThisFrame(27)) { // ESC
+		if (m_isAttractMode) {
+			m_isQuitting = true;
+		}
+		else {
+			m_isAttractMode = true;
+		}
 	}
 
 	if (IsKeyHeldThisFrame('E') || IsKeyDownThisFrame('E')) {
@@ -184,4 +208,34 @@ bool App::IsKeyHeldThisFrame(unsigned char keyCode) {
 //-----------------------------------------------------------------------------------------------
 bool App::IsKeyUpThisFrame(unsigned char keyCode) {
 	return !m_keyDownThisFrame[keyCode] && m_keyDownLastFrame[keyCode];
+}
+
+//-----------------------------------------------------------------------------------------------
+void App::RenderAttractMode() const {
+	g_engine->m_renderer->BeginCamera(*g_app->m_UICamera);
+
+	Vertex worldMesh[WaspEnemy::m_vertexNum];
+
+	PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, worldMesh);
+	TransformVertexArrayXY3D(PlayerShip::m_vertexNum, worldMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X - 20*PLAYER_SHIP_COSMETIC_RADIUS , WORLD_CENTER_Y));
+	g_engine->m_renderer->DrawVertexArray(15, worldMesh);
+
+	BeetleEnemy::GetLocalMesh(BeetleEnemy::m_vertexNum, worldMesh);
+	TransformVertexArrayXY3D(BeetleEnemy::m_vertexNum-6, worldMesh, 5.f, 200.f, 
+		Vec2(WORLD_CENTER_X + 20*PLAYER_SHIP_COSMETIC_RADIUS, WORLD_CENTER_Y + 10 * PLAYER_SHIP_COSMETIC_RADIUS));
+	g_engine->m_renderer->DrawVertexArray(BeetleEnemy::m_vertexNum - 6, worldMesh);
+
+	WaspEnemy::GetLocalMesh(WaspEnemy::m_vertexNum, worldMesh);
+	TransformVertexArrayXY3D(WaspEnemy::m_vertexNum - 12, worldMesh, 5.f, 160.f,
+		Vec2(WORLD_CENTER_X + 20 * PLAYER_SHIP_COSMETIC_RADIUS, WORLD_CENTER_Y - 10 * PLAYER_SHIP_COSMETIC_RADIUS));
+	g_engine->m_renderer->DrawVertexArray(WaspEnemy::m_vertexNum - 12, worldMesh);
+
+	Vertex startButtonMesh[3];
+	startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
+	startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
+	startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
+	TransformVertexArrayXY3D(3, startButtonMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
+	g_engine->m_renderer->DrawVertexArray(3, startButtonMesh);
+
+	g_engine->m_renderer->EndCamera(*g_app->m_UICamera);
 }

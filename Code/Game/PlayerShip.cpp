@@ -17,6 +17,7 @@ PlayerShip::PlayerShip(Game* game)
 	m_physicsRadius = PLAYER_SHIP_PHYSICS_RADIUS;
 	m_cosmeticRadius = PLAYER_SHIP_COSMETIC_RADIUS;
 	m_angularVelocity = PLAYER_SHIP_TURN_SPEED;
+	m_health = 3;
 
 	m_localMesh = new Vertex[m_vertexNum];
 	m_randomGenerator = RandomNumberGenerator();
@@ -66,6 +67,10 @@ void PlayerShip::Die()
 		else {
 			m_velocity = GetForwardVector() * 10.f;
 			BurstDebris(m_debrisNumMin, m_debrisNumMax, GetForwardVector(), 360.f, Rgba8(102, 153, 204, 255), 1.f);
+		}
+
+		if (m_health <= 0 && !m_isDead) {
+			m_game->DelayQuit(2.f);
 		}
 		m_isDead = true;
 	}

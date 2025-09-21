@@ -22,6 +22,7 @@ public:
 	~Game();
 	void Update(float deltaSeconds);
 	void Render() const;
+	void DelayQuit(float delayTime);
 
 public:
 	PlayerShip* m_player = nullptr;
@@ -40,10 +41,14 @@ private:
 	void HandleRespawnPlayerInput();
 	void RenderPoolEntitys() const;
 	void RenderDebugThings() const;
+	void RenderUI() const;
 	void SetUpLevel(int levelIndex);
 	void CheckGotoNextLevel();
 
 private:
 	GameLevel levels[5] = { {6,1,0 }, {6,3,0}, {8, 2, 1}, {10, 4, 2}, {12, 6, 4} };
-	int curLevelIndex = 0;
+	int m_curLevelIndex = 0;
+	float m_waitedTime = 0;
+	float m_delayTime;
+	bool m_quitFlag = false;
 };
