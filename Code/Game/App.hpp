@@ -18,12 +18,6 @@ public:
 	bool IsQuitting();
 	void Shutdown();
 
-	void OnKeyDown(unsigned char keyCode);
-	void OnKeyUp(unsigned char keyCode);
-	bool IsKeyDownThisFrame(unsigned char keycode);
-	bool IsKeyHeldThisFrame(unsigned char keyCode);
-	bool IsKeyUpThisFrame(unsigned char keycode);
-
 public:
 	Game* m_game = nullptr;
 	Camera* m_gameCamera = nullptr;
@@ -45,7 +39,7 @@ private:
 	void RenderAttractMode() const;
 
 private:
-	bool m_keyDownThisFrame[256];
-	bool m_keyDownLastFrame[256];
-
+	float m_startButtonAnimationTotalTime = 1.f;
+	float m_startButtonAnimationTimeCount = 0.;
+	float m_lastFrameTime = 0.f;
 };

@@ -46,7 +46,7 @@ private:
 	void CheckGotoNextLevel();
 
 private:
-	GameLevel levels[5] = { {6,1,0 }, {6,3,0}, {8, 2, 1}, {10, 4, 2}, {12, 6, 4} };
+	GameLevel levels[5] = { {4,1,0 }, {6,3,1}, {8, 5, 2}, {10, 7, 3}, {12, 9, 4} };
 	int m_curLevelIndex = 0;
 	float m_waitedTime = 0;
 	float m_delayTime;

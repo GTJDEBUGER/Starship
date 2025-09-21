@@ -1,9 +1,9 @@
 #pragma once
 constexpr int NUM_STARTING_ASTEROIDS = 6;
-constexpr int MAX_ASTEROIDS = 30;
-constexpr int MAX_BULLETS = 20;
-constexpr int MAX_BEETLES = 20;
-constexpr int MAX_WASPS = 20;
+constexpr int MAX_ASTEROIDS = 100;
+constexpr int MAX_BULLETS = 50;
+constexpr int MAX_BEETLES = 50;
+constexpr int MAX_WASPS = 50;
 constexpr int MAX_DEBRIS = 200;
 constexpr int MAX_DEBRIS_SUBDIVISION = 8;
 constexpr int DEBUG_DRAWRING_SUBDIVISION = 32;

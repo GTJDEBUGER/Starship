@@ -366,7 +366,15 @@ void Game::RenderDebugThings() const {
 //---------------------------------------------------------------------------------------------------
 void Game::SetUpLevel(int levelIndex) {
 	for (int i = 0; i < levels[levelIndex].asteroidNum; i++) {
-		m_asteroids[i] = new Asteroid(this);
+		int freeAsteroidIndex = -1;
+		for (int j = 0; j < MAX_ASTEROIDS; j++) {
+			if (m_asteroids[j] == nullptr) {
+				freeAsteroidIndex = j;
+			}
+		}
+		if (freeAsteroidIndex > -1) {
+			m_asteroids[freeAsteroidIndex] = new Asteroid(this);
+		}
 	}
 	for (int i = 0; i < levels[levelIndex].beetleEnemy; i++) {
 		m_beetleEnemy[i] = new BeetleEnemy(this);
@@ -379,13 +387,6 @@ void Game::SetUpLevel(int levelIndex) {
 //--------------------------------------------------------------------------------------------------
 void Game::CheckGotoNextLevel() {
 	bool flag = true;
-	for (int i = 0; i < MAX_ASTEROIDS; i++)
-	{
-		if (m_asteroids[i] != nullptr) {
-			flag = false;
-			break;
-		}
-	}
 	for (int i = 0; i < MAX_BEETLES; i++) {
 		if (m_beetleEnemy[i] != nullptr || !flag) {
 			flag = false;

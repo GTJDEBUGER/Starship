@@ -1,6 +1,8 @@
 #include "Engine/Core/Engine.hpp"
+#include "Engine/Core/Time.hpp"
 #include "Engine//Renderer/Camera.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Input/InputSystem.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Game/App.hpp"
 #include "Game/Game.hpp"
@@ -18,10 +20,6 @@ App::App()
 	m_game = new Game();
 	m_gameCamera = new Camera(Vec2(0.f,0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
 	m_UICamera = new Camera(Vec2(0.f, 0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
-	for (int i = 0; i < 256; i++) {
-		m_keyDownLastFrame[i] = false;
-		m_keyDownThisFrame[i] = false;
-	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -54,7 +52,8 @@ void App::RunFrame()
 //-----------------------------------------------------------------------------------------------
 void App::Update() {
 	//-------------------------------------------------------------------------------------------
-	float deltaSeconds = 1.f / 60.f;
+	float deltaSeconds = GetCurrentTimeSeconds() - m_lastFrameTime;
+	deltaSeconds = GetClamped(deltaSeconds, 1.f/60.f, 0.1f);
 
 	float originalDeltaSeconds = deltaSeconds;
 	if (m_isSlowDown) {
@@ -75,6 +74,15 @@ void App::Update() {
 	if (!m_isAttractMode) {
 		m_game->Update(deltaSeconds);
 	}
+	else {
+		m_startButtonAnimationTimeCount += deltaSeconds;
+		if (m_startButtonAnimationTimeCount > m_startButtonAnimationTotalTime) {
+			m_startButtonAnimationTimeCount = 0;
+		}
+	}
+
+	//-------------------------------------------------------------------------------------------
+	m_lastFrameTime = GetCurrentTimeSeconds();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -100,38 +108,26 @@ void App::Shutdown()
 }
 
 //-----------------------------------------------------------------------------------------------
-void App::OnKeyDown(unsigned char keyCode)
-{
-	m_keyDownThisFrame[keyCode] = true;
-}
-
-//-----------------------------------------------------------------------------------------------
-void App::OnKeyUp(unsigned char keyCode)
-{
-	m_keyDownThisFrame[keyCode] = false;
-}
-
-//-----------------------------------------------------------------------------------------------
 void App::HandlePlayerInput(){
-	if (IsKeyDownThisFrame(119)) { //F8
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F8)) {
 		Shutdown();
 		m_isShutdown = true;
 		return;
 	}
 
-	if (IsKeyHeldThisFrame('T') || IsKeyDownThisFrame('T')) {
+	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
 		m_isSlowDown = true;
 	}
 
-	if (IsKeyDownThisFrame('P')) {
+	if (g_engine->m_input->WasKeyJustPressed('P')) {
 		m_isPause = !m_isPause;
 	}
 
-	if (IsKeyDownThisFrame('O')) {
+	if (g_engine->m_input->WasKeyJustPressed('O')) {
 		m_singleStep = true;
 	}
 
-	if (IsKeyDownThisFrame(32)) { //SPACE
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) { //SPACE
 		if (!m_isAttractMode) {
 			m_isFiring = true;
 		}
@@ -143,19 +139,19 @@ void App::HandlePlayerInput(){
 		}
 	}
 
-	if (IsKeyDownThisFrame(112)) {
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F1)) {
 		m_isDebugDraw = !m_isDebugDraw;
 	}
 
-	if (IsKeyDownThisFrame('N')) {
+	if (g_engine->m_input->WasKeyJustPressed('N')) {
 		m_isPlayerRespawn = true;
 	}
 
-	if (IsKeyDownThisFrame('I')) {
+	if (g_engine->m_input->WasKeyJustPressed('I')) {
 		m_isAsteroidRespawn = true;
 	}
 
-	if (IsKeyDownThisFrame(27)) { // ESC
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_ESC)) { // ESC
 		if (m_isAttractMode) {
 			m_isQuitting = true;
 		}
@@ -164,50 +160,33 @@ void App::HandlePlayerInput(){
 		}
 	}
 
-	if (IsKeyHeldThisFrame('E') || IsKeyDownThisFrame('E')) {
+	if (g_engine->m_input->WasKeyJustPressed('E') || g_engine->m_input->IsKeyDown('E')) {
 		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION;
 	}
 
-	if ((IsKeyHeldThisFrame('F') || IsKeyDownThisFrame('F')) && !(IsKeyHeldThisFrame('S') || IsKeyDownThisFrame('S'))) {
+	if ((g_engine->m_input->WasKeyJustPressed('F') || g_engine->m_input->IsKeyDown('F'))
+		&& !(g_engine->m_input->WasKeyJustPressed('S') || g_engine->m_input->IsKeyDown('S'))) {
 		m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
 	}
 
-	if ((IsKeyHeldThisFrame('S') || IsKeyDownThisFrame('S')) && !(IsKeyHeldThisFrame('F') || IsKeyDownThisFrame('F'))) {
+	if ((g_engine->m_input->WasKeyJustPressed('S') || g_engine->m_input->IsKeyDown('S'))
+		&& !(g_engine->m_input->WasKeyJustPressed('F') || g_engine->m_input->IsKeyDown('F'))) {
 		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
 	}
 
 
-	if (IsKeyUpThisFrame('T')) {
+	if (g_engine->m_input->WasKeyJustReleased('T')) {
 		m_isSlowDown = false;
 	}
 
-	if (IsKeyUpThisFrame('E')) {
+	if (g_engine->m_input->WasKeyJustReleased('E')) {
 		m_game->m_player->m_acceleration = 0;
 	}
 
-	if ((IsKeyUpThisFrame('S') || IsKeyUpThisFrame('F')) || (IsKeyHeldThisFrame('F') && IsKeyHeldThisFrame('S'))) {
+	if ((g_engine->m_input->WasKeyJustReleased('S') || g_engine->m_input->WasKeyJustReleased('F')) 
+		|| (g_engine->m_input->IsKeyDown('F') && g_engine->m_input->IsKeyDown('S'))) {
 		m_game->m_player->m_rotationSpeed = 0;
 	}
-
-	//------------------------------------------------------------------------------------------
-	for (int i = 0; i < 256; i++) {
-		m_keyDownLastFrame[i] = m_keyDownThisFrame[i];
-	}
-}
-
-//-----------------------------------------------------------------------------------------------
-bool App::IsKeyDownThisFrame(unsigned char keyCode) {
-	return m_keyDownThisFrame[keyCode] && !m_keyDownLastFrame[keyCode];
-}
-
-//-----------------------------------------------------------------------------------------------
-bool App::IsKeyHeldThisFrame(unsigned char keyCode) {
-	return m_keyDownThisFrame[keyCode] && m_keyDownLastFrame[keyCode];
-}
-
-//-----------------------------------------------------------------------------------------------
-bool App::IsKeyUpThisFrame(unsigned char keyCode) {
-	return !m_keyDownThisFrame[keyCode] && m_keyDownLastFrame[keyCode];
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -231,9 +210,30 @@ void App::RenderAttractMode() const {
 	g_engine->m_renderer->DrawVertexArray(WaspEnemy::m_vertexNum - 12, worldMesh);
 
 	Vertex startButtonMesh[3];
-	startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
-	startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
-	startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f), Rgba8(0, 255, 0, 255), Vec2(0, 0));
+	float fraction = m_startButtonAnimationTimeCount / m_startButtonAnimationTotalTime;
+	if (fraction <= 0.5f) {
+		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f), 
+									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255), 
+									Vec2(0, 0));
+		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
+									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
+									Vec2(0, 0)); 
+		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
+									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
+									Vec2(0, 0));
+	}
+	else
+	{
+		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f),
+									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction-0.5f) * 2)), 0, 255),
+									Vec2(0, 0)); 
+		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
+									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
+									Vec2(0, 0));
+		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
+									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
+									Vec2(0, 0));
+	}
 	TransformVertexArrayXY3D(3, startButtonMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
 	g_engine->m_renderer->DrawVertexArray(3, startButtonMesh);
 

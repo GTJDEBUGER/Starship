@@ -5,8 +5,9 @@
 #include <crtdbg.h>
 
 // Self include
-#include "Engine//Core/Engine.hpp"
+#include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Input/InputSystem.hpp"
 
 #include "Game/App.hpp"
 #include "Game/Game.hpp"
@@ -53,7 +54,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 		{
 			unsigned char asKey = (unsigned char)wParam;
 
-			g_app->OnKeyDown(asKey);
+			g_engine->m_input->HandleKeyPressed(asKey);
 			break;
 		}
 
@@ -62,7 +63,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 		{
 			unsigned char asKey = (unsigned char) wParam;
 
-			g_app->OnKeyUp(asKey);
+			g_engine->m_input->HandleKeyReleased(asKey);
 			break;
 		}
 	}
