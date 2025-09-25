@@ -192,8 +192,6 @@ int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR comman
 
 		g_app->RunFrame();
 
-		Sleep(16); // Temporary code to "slow down" our app to ~60Hz until we have proper frame timing in
-
 		// "Present" the back buffer by swapping the front (visible) and back (working) screen buffers
 		SwapBuffers(g_displayDeviceContext); // Note: call this only once at the very end of each frame
 	}

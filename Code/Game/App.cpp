@@ -52,8 +52,7 @@ void App::RunFrame()
 //-----------------------------------------------------------------------------------------------
 void App::Update() {
 	//-------------------------------------------------------------------------------------------
-	float deltaSeconds = GetCurrentTimeSeconds() - m_lastFrameTime;
-	deltaSeconds = GetClamped(deltaSeconds, 1.f/60.f, 0.1f);
+	float deltaSeconds = static_cast<float>(GetCurrentTimeSeconds()) - m_lastFrameTime;
 
 	float originalDeltaSeconds = deltaSeconds;
 	if (m_isSlowDown) {
@@ -82,7 +81,7 @@ void App::Update() {
 	}
 
 	//-------------------------------------------------------------------------------------------
-	m_lastFrameTime = GetCurrentTimeSeconds();
+	m_lastFrameTime = static_cast<float>(GetCurrentTimeSeconds());
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -213,25 +212,25 @@ void App::RenderAttractMode() const {
 	float fraction = m_startButtonAnimationTimeCount / m_startButtonAnimationTotalTime;
 	if (fraction <= 0.5f) {
 		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f), 
-									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255), 
+									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255), 
 									Vec2(0, 0));
 		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
+									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
 									Vec2(0, 0)); 
 		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
-									Rgba8(0, static_cast<unsigned int>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
+									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
 									Vec2(0, 0));
 	}
 	else
 	{
 		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction-0.5f) * 2)), 0, 255),
+									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction-0.5f) * 2)), 0, 255),
 									Vec2(0, 0)); 
 		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
+									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
 									Vec2(0, 0));
 		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
-									Rgba8(0, static_cast<unsigned int>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
+									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
 									Vec2(0, 0));
 	}
 	TransformVertexArrayXY3D(3, startButtonMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
