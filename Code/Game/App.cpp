@@ -108,6 +108,9 @@ void App::Shutdown()
 
 //-----------------------------------------------------------------------------------------------
 void App::HandlePlayerInput(){
+
+	//Keyboard control
+	//-------------------------------------------------------------------------------------------
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F8)) {
 		Shutdown();
 		m_isShutdown = true;
@@ -126,7 +129,7 @@ void App::HandlePlayerInput(){
 		m_singleStep = true;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) { //SPACE
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) {
 		if (!m_isAttractMode) {
 			m_isFiring = true;
 		}
@@ -150,7 +153,7 @@ void App::HandlePlayerInput(){
 		m_isAsteroidRespawn = true;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_ESC)) { // ESC
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_ESC)) {
 		if (m_isAttractMode) {
 			m_isQuitting = true;
 		}
@@ -185,6 +188,29 @@ void App::HandlePlayerInput(){
 	if ((g_engine->m_input->WasKeyJustReleased('S') || g_engine->m_input->WasKeyJustReleased('F')) 
 		|| (g_engine->m_input->IsKeyDown('F') && g_engine->m_input->IsKeyDown('S'))) {
 		m_game->m_player->m_rotationSpeed = 0;
+	}
+
+	//Controller control
+	//-------------------------------------------------------------------------------------------
+	if (g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude()>0) {
+		m_game->m_player->m_orientationDegrees = g_engine->m_input->GetController(0).GetLeftStick().GetOrientationDegrees();
+		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION * g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude();
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
+		if (!m_isAttractMode) {
+			m_isFiring = true;
+		}
+		else {
+			m_isAttractMode = false;
+			delete m_game;
+			m_game = nullptr;
+			m_game = new Game();
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_START)) {
+		m_isPlayerRespawn = true;
 	}
 }
 
