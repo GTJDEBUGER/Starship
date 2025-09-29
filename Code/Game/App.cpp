@@ -196,6 +196,9 @@ void App::HandlePlayerInput(){
 		m_game->m_player->m_orientationDegrees = g_engine->m_input->GetController(0).GetLeftStick().GetOrientationDegrees();
 		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION * g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude();
 	}
+	else {
+		m_game->m_player->m_acceleration = 0;
+	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
 		if (!m_isAttractMode) {
