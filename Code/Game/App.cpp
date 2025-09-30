@@ -146,7 +146,15 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('N')) {
-		m_isPlayerRespawn = true;
+		if (!m_isAttractMode) {
+			m_isPlayerRespawn = true;
+		}
+		else {
+			m_isAttractMode = false;
+			delete m_game;
+			m_game = nullptr;
+			m_game = new Game();
+		}
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('I')) {
@@ -213,7 +221,15 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_START)) {
-		m_isPlayerRespawn = true;
+		if (!m_isAttractMode) {
+			m_isPlayerRespawn = true;
+		}
+		else {
+			m_isAttractMode = false;
+			delete m_game;
+			m_game = nullptr;
+			m_game = new Game();
+		}
 	}
 }
 
