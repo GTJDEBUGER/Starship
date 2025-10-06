@@ -203,6 +203,7 @@
     <ClInclude Include="BeetleEnemy.hpp" />
     <ClInclude Include="Bullet.hpp" />
     <ClInclude Include="Debris.hpp" />
+    <ClInclude Include="EngineBuildPreferences.hpp" />
     <ClInclude Include="Entity.hpp" />
     <ClInclude Include="Game.hpp" />
     <ClInclude Include="GameCommon.hpp" />

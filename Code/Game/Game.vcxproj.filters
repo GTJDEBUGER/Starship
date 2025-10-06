@@ -75,5 +75,8 @@
     <ClInclude Include="Debris.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
+    <ClInclude Include="EngineBuildPreferences.hpp">
+      <Filter>Framework</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
