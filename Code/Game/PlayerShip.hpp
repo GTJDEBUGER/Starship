@@ -17,7 +17,7 @@ public:
 public:
 	float m_acceleration = 0;
 	float m_rotationSpeed = 0;
-	static const int m_vertexNum = 15;
+	static const int m_vertexNum = 18;
 
 private:
 	void BounceCheck();
@@ -28,4 +28,7 @@ private:
 	Vec2 m_lastFramePosition;
 	int m_debrisNumMin = 5;
 	int m_debrisNumMax = 30;
+	float m_dieScreenShakeAmp = 5.f;
+	float m_bounceShakeAmp = 1.f;
+	size_t m_accelerateSoundPlaybackID;
 };

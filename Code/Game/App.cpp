@@ -19,8 +19,14 @@ App::App()
 {
 	g_engine = new Engine();
 	m_game = new Game();
-	m_gameCamera = new Camera(Vec2(0.f,0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
-	m_UICamera = new Camera(Vec2(0.f, 0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/DieExplode.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/Respawn.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyGetHurt.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyDie.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -71,15 +77,7 @@ void App::Update() {
 	}
 
 	//-------------------------------------------------------------------------------------------
-	if (!m_isAttractMode) {
-		m_game->Update(deltaSeconds);
-	}
-	else {
-		m_startButtonAnimationTimeCount += deltaSeconds;
-		if (m_startButtonAnimationTimeCount > m_startButtonAnimationTotalTime) {
-			m_startButtonAnimationTimeCount = 0;
-		}
-	}
+	m_game->Update(deltaSeconds);
 
 	//-------------------------------------------------------------------------------------------
 	m_lastFrameTime = static_cast<float>(GetCurrentTimeSeconds());
@@ -87,12 +85,7 @@ void App::Update() {
 
 //-----------------------------------------------------------------------------------------------
 void App::Render() {
-	if (!m_isAttractMode) {
-		m_game->Render();
-	}
-	else {
-		RenderAttractMode();
-	}
+	m_game->Render();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -131,14 +124,13 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) {
-		if (!m_isAttractMode) {
+		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
 			m_isFiring = true;
 		}
 		else {
-			m_isAttractMode = false;
 			delete m_game;
-			m_game = nullptr;
 			m_game = new Game();
+			m_game->SetNextGameState(GAME_PLAYING);
 		}
 	}
 
@@ -147,14 +139,13 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('N')) {
-		if (!m_isAttractMode) {
+		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
 			m_isPlayerRespawn = true;
 		}
 		else {
-			m_isAttractMode = false;
 			delete m_game;
-			m_game = nullptr;
 			m_game = new Game();
+			m_game->SetNextGameState(GAME_PLAYING);
 		}
 	}
 
@@ -163,11 +154,11 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_ESC)) {
-		if (m_isAttractMode) {
+		if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
 			m_isQuitting = true;
 		}
 		else {
-			m_isAttractMode = true;
+			m_game->SetNextGameState(GAME_ATTRACT_MODE);
 		}
 	}
 
@@ -210,77 +201,25 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
-		if (!m_isAttractMode) {
+		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
 			m_isFiring = true;
 		}
 		else {
-			m_isAttractMode = false;
 			delete m_game;
-			m_game = nullptr;
 			m_game = new Game();
+			m_game->SetNextGameState(GAME_PLAYING);
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_START)) {
-		if (!m_isAttractMode) {
+		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
 			m_isPlayerRespawn = true;
 		}
 		else {
-			m_isAttractMode = false;
 			delete m_game;
-			m_game = nullptr;
 			m_game = new Game();
+			m_game->SetNextGameState(GAME_PLAYING);
 		}
 	}
 }
 
-//-----------------------------------------------------------------------------------------------
-void App::RenderAttractMode() const {
-	g_engine->m_renderer->BeginCamera(*g_app->m_UICamera);
-
-	Vertex worldMesh[WaspEnemy::m_vertexNum];
-
-	PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, worldMesh);
-	TransformVertexArrayXY3D(PlayerShip::m_vertexNum, worldMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X - 20*PLAYER_SHIP_COSMETIC_RADIUS , WORLD_CENTER_Y));
-	g_engine->m_renderer->DrawVertexArray(15, worldMesh);
-
-	BeetleEnemy::GetLocalMesh(BeetleEnemy::m_vertexNum, worldMesh);
-	TransformVertexArrayXY3D(BeetleEnemy::m_vertexNum-6, worldMesh, 5.f, 200.f, 
-		Vec2(WORLD_CENTER_X + 20*PLAYER_SHIP_COSMETIC_RADIUS, WORLD_CENTER_Y + 10 * PLAYER_SHIP_COSMETIC_RADIUS));
-	g_engine->m_renderer->DrawVertexArray(BeetleEnemy::m_vertexNum - 6, worldMesh);
-
-	WaspEnemy::GetLocalMesh(WaspEnemy::m_vertexNum, worldMesh);
-	TransformVertexArrayXY3D(WaspEnemy::m_vertexNum - 12, worldMesh, 5.f, 160.f,
-		Vec2(WORLD_CENTER_X + 20 * PLAYER_SHIP_COSMETIC_RADIUS, WORLD_CENTER_Y - 10 * PLAYER_SHIP_COSMETIC_RADIUS));
-	g_engine->m_renderer->DrawVertexArray(WaspEnemy::m_vertexNum - 12, worldMesh);
-
-	Vertex startButtonMesh[3];
-	float fraction = m_startButtonAnimationTimeCount / m_startButtonAnimationTotalTime;
-	if (fraction <= 0.5f) {
-		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f), 
-									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255), 
-									Vec2(0, 0));
-		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
-									Vec2(0, 0)); 
-		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
-									Rgba8(0, static_cast<unsigned char>(Interpolate(255.f, 64.f, fraction * 2)), 0, 255),
-									Vec2(0, 0));
-	}
-	else
-	{
-		startButtonMesh[0] = Vertex(Vec3(-1.f, 1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction-0.5f) * 2)), 0, 255),
-									Vec2(0, 0)); 
-		startButtonMesh[1] = Vertex(Vec3(-1.f, -1.7f, 0.f),
-									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
-									Vec2(0, 0));
-		startButtonMesh[2] = Vertex(Vec3(2.f, 0.f, 0.f),
-									Rgba8(0, static_cast<unsigned char>(Interpolate(64.f, 255.f, (fraction - 0.5f) * 2)), 0, 255),
-									Vec2(0, 0));
-	}
-	TransformVertexArrayXY3D(3, startButtonMesh, 5.f, 0.f, Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
-	g_engine->m_renderer->DrawVertexArray(3, startButtonMesh);
-
-	g_engine->m_renderer->EndCamera(*g_app->m_UICamera);
-}

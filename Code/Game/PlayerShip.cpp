@@ -2,6 +2,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 
 #include "Game/PlayerShip.hpp"
 #include "Game/GameCommon.hpp"
@@ -22,6 +23,9 @@ PlayerShip::PlayerShip(Game* game)
 	m_localMesh = new Vertex[m_vertexNum];
 	m_randomGenerator = RandomNumberGenerator();
 	GetLocalMesh(m_vertexNum, m_localMesh);
+
+	SoundID accelerateSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
+	m_accelerateSoundPlaybackID = g_engine->m_audio->StartSound(accelerateSound, true, 0.0f, 0.f, 1.f);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -38,6 +42,7 @@ void PlayerShip::Update(float deltaSeconds)
 	m_velocity += GetForwardVector() * m_acceleration * deltaSeconds;
 	m_position += m_velocity * deltaSeconds;
 	m_orientationDegrees += m_rotationSpeed * deltaSeconds;
+	g_engine->m_audio->SetSoundPlaybackVolume(m_accelerateSoundPlaybackID, 0.5f * m_acceleration / PLAYER_SHIP_ACCELERATION);
 
 	//--------------------------------------------------------------------------------
 	if (!IsOffScreen()) {
@@ -48,13 +53,17 @@ void PlayerShip::Update(float deltaSeconds)
 //-----------------------------------------------------------------------------------------------
 void PlayerShip::Render() const
 {
-	Vertex m_worldMesh[15];
-	for (int i = 0; i < 15; i++)
+	Vertex m_worldMesh[m_vertexNum];
+	for (int i = 0; i < m_vertexNum; i++)
 	{
 		m_worldMesh[i] = m_localMesh[i];
 	}
-	TransformVertexArrayXY3D(15, m_worldMesh, 1.f, m_orientationDegrees, m_position);
-	g_engine->m_renderer->DrawVertexArray(15, m_worldMesh);
+	float flameLength = -2.f - 2.f*(m_acceleration/ PLAYER_SHIP_ACCELERATION)*(m_randomGenerator.RollRandomFloatZeroToOne()*0.5f+1.f);
+	m_worldMesh[15] = Vertex(Vec3(-2.f, 1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
+	m_worldMesh[16] = Vertex(Vec3(-2.f, -1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
+	m_worldMesh[17] = Vertex(Vec3(flameLength, 0.f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
+	TransformVertexArrayXY3D(m_vertexNum, m_worldMesh, 1.f, m_orientationDegrees, m_position);
+	g_engine->m_renderer->DrawVertexArray(m_vertexNum, m_worldMesh);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -72,6 +81,10 @@ void PlayerShip::Die()
 		if (m_health <= 0 && !m_isDead) {
 			m_game->DelayQuit(2.f);
 		}
+		m_game->AddCameraShake(m_dieScreenShakeAmp);
+		SoundID dieSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/DieExplode.wav");
+		g_engine->m_audio->StartSound(dieSound, false, 1.0f, 0.f, 0.8f);
+		g_engine->m_audio->SetSoundPlaybackVolume(m_accelerateSoundPlaybackID, 0.f);
 		m_isDead = true;
 	}
 }
@@ -108,21 +121,33 @@ void PlayerShip::BounceCheck() {
 	if (m_position.x - m_physicsRadius < 0) {
 		m_position = m_lastFramePosition;
 		m_velocity = m_velocity - 2.0f * Vec2(1, 0) * m_velocity.x;
+		m_game->AddCameraShake(m_bounceShakeAmp);
+		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.x + m_physicsRadius > WORLD_SIZE_X) {
 		m_position = m_lastFramePosition;
 		m_velocity = m_velocity - 2.0f * Vec2(-1, 0) * (-m_velocity.x);
+		m_game->AddCameraShake(m_bounceShakeAmp);
+		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.y - m_physicsRadius < 0) {
 		m_position = m_lastFramePosition;
 		m_velocity = m_velocity - 2.0f * Vec2(0, 1) * m_velocity.y;
+		m_game->AddCameraShake(m_bounceShakeAmp);
+		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.y + m_physicsRadius > WORLD_SIZE_Y) {
 		m_position = m_lastFramePosition;
 		m_velocity = m_velocity - 2.0f * Vec2(0, -1) * (-m_velocity.y);
+		m_game->AddCameraShake(m_bounceShakeAmp);
+		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
 	}
 }
 

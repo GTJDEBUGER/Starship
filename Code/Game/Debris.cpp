@@ -6,6 +6,8 @@
 
 #include "Game/Debris.hpp"
 #include "Game/GameCommon.hpp"
+#include "Game/Game.hpp"
+#include "Game/PlayerShip.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Debris::Debris(Game* game, Vec2 burstPosition, Vec2 burstDirection, float burstSpeed, Rgba8 color, float meshScale)

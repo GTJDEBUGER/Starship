@@ -2,6 +2,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 
 #include "Game/Bullet.hpp"
 #include "Game/GameCommon.hpp"
@@ -53,6 +54,8 @@ void Bullet::Die()
 	if (!m_isDead) {
 		if (m_lifeTime > 0.f && !IsOffScreen()) {
 			BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 30.f, Rgba8(255, 255, 0, 255), 0.2f);
+			SoundID hitSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyGetHurt.wav");
+			g_engine->m_audio->StartSound(hitSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.5f,1.1f));
 		}
 		m_isDead = true;
 	}

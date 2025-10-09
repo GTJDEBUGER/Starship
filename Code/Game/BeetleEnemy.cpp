@@ -2,6 +2,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 
 #include "Game/BeetleEnemy.hpp"
 #include "Game/GameCommon.hpp"
@@ -79,6 +80,8 @@ void BeetleEnemy::Die()
 	if (!m_isDead) {
 		BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 180.f, Rgba8(161, 67, 5, 255), 1.f);
 		BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 90.f, Rgba8(255, 0, 0, 255), 0.5f);
+		SoundID dieSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyDie.wav");
+		g_engine->m_audio->StartSound(dieSound, false, 1.5f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f,1.1f));
 		m_isDead = true;
 	}
 }
