@@ -5,11 +5,13 @@
 #include "Engine/Audio/AudioSystem.hpp"
 
 #include "Game/WaspEnemy.hpp"
+#include "Game/BeetleEnemy.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Playership.hpp"
 #include "Game/Bullet.hpp"
 #include "Game/Debris.hpp"
 #include "Game/Game.hpp"
+#include "Game/ShockWave.hpp"
 
 //-----------------------------------------------------------------------------------------------
 WaspEnemy::WaspEnemy(Game* game)
@@ -17,10 +19,12 @@ WaspEnemy::WaspEnemy(Game* game)
 {
 	m_physicsRadius = ENEMY_WASP_PHYSICS_RADIUS * m_meshScale;
 	m_cosmeticRadius = ENEMY_WASP_COSMETIC_RADIUS * m_meshScale;
-	m_curFrame = 0;
-	m_maxFrame = 16;
+	m_nearbyRadius = ENEMY_WASP_NEARBY_RADIUS * m_meshScale;
 	m_health = 3;
-	SetPositionRandomOffscreen();
+	m_maxSpeed = m_randomGenerator.RollRandomFloatInRange(ENEMY_WASP_SPEED * 0.8, ENEMY_WASP_SPEED * 1.2);
+
+	//SetPositionRandomOffWorld();
+	SetPositionRandomOffScreen(m_game->m_player->m_position);
 
 	m_localMesh = new Vertex[m_vertexNum];
 	GetLocalMesh(m_vertexNum, m_localMesh);
@@ -34,23 +38,26 @@ void WaspEnemy::Update(float deltaSeconds)
 		Die();
 		return;
 	}
+	m_deltaSeconds = deltaSeconds;
 	//--------------------------------------------------------------------------------
 	CollideTest();
+	FindNearbyEnemy();
+	BoidSimulation();
+
 	//--------------------------------------------------------------------------------
 	m_curFrame = (m_curFrame + 1) % m_maxFrame;
+	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
+
 	//--------------------------------------------------------------------------------
-	if (!m_game->m_player->m_isDead) {
-		Vec2 directionToPlayer = (m_game->m_player->m_position - m_position).GetNormalized();
-		m_orientationDegrees = directionToPlayer.GetOrientationDegrees();
-
-		m_velocity += ENEMY_WASP_ACCELERATION * directionToPlayer * deltaSeconds;
-	}
-
-	if (m_velocity.GetLengthSquared() > ENEMY_WASP_MAX_SPEED * ENEMY_WASP_MAX_SPEED) {
-		m_velocity = m_velocity.GetNormalized() * ENEMY_WASP_MAX_SPEED;
-	}
+	m_orientationDegrees = m_velocity.GetOrientationDegrees();
 	m_position += m_velocity * deltaSeconds;
+	m_beforeTeleportPos = m_position;
 
+	if (BoundaryTeleport()) {
+		BurstShockWave(m_beforeTeleportPos, 0.2f, 20.f, Rgba8(255, 0, 200, 255));
+		BurstShockWave(m_beforeTeleportPos, 0.4f, 10.f, Rgba8(200, 0, 145, 255));
+	}
+	m_velocity = m_nextVelocity;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -61,6 +68,10 @@ void WaspEnemy::Render() const
 	{
 		m_worldMesh[i] = m_localMesh[i];
 		m_worldMesh[i].m_position *= m_meshScale;
+		m_worldMesh[i].m_color = Rgba8((unsigned char)Interpolate(m_worldMesh[i].m_color.r, 255.f, m_flashFraction),
+									   (unsigned char)Interpolate(m_worldMesh[i].m_color.g, 255.f, m_flashFraction),
+									   (unsigned char)Interpolate(m_worldMesh[i].m_color.b, 255.f, m_flashFraction),
+									   m_worldMesh[i].m_color.a);
 	}
 	
 	float frameFraction = static_cast<float>(m_curFrame) / static_cast<float>(m_maxFrame);
@@ -86,10 +97,13 @@ void WaspEnemy::Render() const
 void WaspEnemy::Die()
 {
 	if (!m_isDead) {
-		BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 180.f, Rgba8(255, 222, 0, 255), 1.f);
-		BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 90.f, Rgba8(255, 0, 0, 255), 0.5f);
+		m_game->m_player->GainExp(4.f);
+		BurstDebris(m_debrisNumMin, m_debrisNumMax, m_finalHitDir, 180.f, Rgba8(255, 222, 0, 255), 1.f);
+		BurstDebris(m_debrisNumMin, m_debrisNumMax, m_finalHitDir, 90.f, Rgba8(255, 0, 0, 255), 0.5f);
+		BurstShockWave(m_position, 0.2f, 20.f, Rgba8(255, 0, 0, 255));
+		BurstShockWave(m_position, 0.4f, 10.f, Rgba8(200, 0, 0, 255));
 		SoundID dieSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyDie.wav");
-		g_engine->m_audio->StartSound(dieSound, false, 1.5f, 0.f, m_randomGenerator.RollRandomFloatInRange(1.1f, 1.3f));
+		g_engine->m_audio->StartSound(dieSound, false, 1.1f, 0.f, m_randomGenerator.RollRandomFloatInRange(1.1f, 1.3f));
 		m_isDead = true;
 	}
 }
@@ -281,16 +295,20 @@ void WaspEnemy::GetLocalMesh(int vertexNum, Vertex* mesh) {
 
 //-----------------------------------------------------------------------------------------------
 void WaspEnemy::CollideTest() {
-	if (DoDiscsOverlap(m_position, m_physicsRadius,
-		m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
-		m_game->m_player->Die();
-	}
-	for (int i = 0; i < MAX_BULLETS; i++) {
-		if (m_game->m_bullets[i] != nullptr) {
-			if (DoDiscsOverlap(m_position, m_physicsRadius,
-				m_game->m_bullets[i]->m_position, m_game->m_bullets[i]->m_physicsRadius)) {
-				m_game->m_bullets[i]->Die();
-				m_health--;
+	if (!m_game->m_player->m_isDead) {
+		if (DoDiscsOverlap(m_position, m_physicsRadius,
+			m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
+			float playerVelocity = m_game->m_player->m_velocity.GetLength();
+			m_game->m_player->LoseHealth(5.f);
+			m_game->m_player->GetHit(m_position, m_physicsRadius);
+			m_game->m_player->m_flashFraction = 1.f;
+
+			m_game->AddCameraShake(m_bounceShakeAmp);
+			SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
+			g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
+			if (playerVelocity > m_hitDieSpeed) {
+				m_finalHitDir = (m_position - m_game->m_player->m_position).GetNormalized();
+				Die();
 			}
 		}
 	}
@@ -316,4 +334,91 @@ void WaspEnemy::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float b
 		}
 	}
 
+}
+
+//----------------------------------------------------------------------------------------------
+void WaspEnemy::BurstShockWave(Vec2 position, float duration, float spreadDistance, Rgba8 waveColor) {
+
+	int freeShockWaveIndex = -1;
+	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
+		if (m_game->m_shockWaves[i] == nullptr) {
+			freeShockWaveIndex = i;
+			break;
+		}
+	}
+	if (freeShockWaveIndex > -1) {
+		m_game->m_shockWaves[freeShockWaveIndex] = new ShockWave(m_game,position,duration,spreadDistance,waveColor);
+	}
+
+}
+
+//----------------------------------------------------------------------------------------------
+void WaspEnemy::FindNearbyEnemy() {
+	m_nearbyEnemyCount = 0;
+	for (int i = 0; i < MAX_BEETLES; i++) {
+		if (m_game->m_beetleEnemy[i] != nullptr) {
+			if ((m_game->m_beetleEnemy[i]->m_position - m_position).GetLengthSquared() < ENEMY_BEETLE_NEARBY_RADIUS * ENEMY_BEETLE_NEARBY_RADIUS) {
+				m_nearbyEnemy[m_nearbyEnemyCount] = m_game->m_beetleEnemy[i];
+				m_nearbyEnemyCount++;
+			}
+		}
+	}
+
+	for (int i = 0; i < MAX_WASPS; i++) {
+		if (m_game->m_waspEnemy[i] != nullptr && m_game->m_waspEnemy[i] != this) {
+			if ((m_game->m_waspEnemy[i]->m_position - m_position).GetLengthSquared() < ENEMY_BEETLE_NEARBY_RADIUS * ENEMY_BEETLE_NEARBY_RADIUS) {
+				m_nearbyEnemy[m_nearbyEnemyCount] = m_game->m_waspEnemy[i];
+				m_nearbyEnemyCount++;
+			}
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------
+void WaspEnemy::BoidSimulation() {
+	Vec2 separation(0.f, 0.f);
+	Vec2 alignment(0.f, 0.f);
+	Vec2 cohesion(0.f, 0.f);
+
+	if (m_nearbyEnemyCount > 0) {
+		// Separation
+		for (int i = 0; i < m_nearbyEnemyCount; i++) {
+			Vec2 away = m_position - m_nearbyEnemy[i]->m_position;
+			float sqrDistance = away.GetLengthSquared();
+			if (sqrDistance < m_boidSeprationBoundery * m_boidSeprationBoundery) {
+				separation += away / sqrDistance;
+			}
+		}
+		separation *= m_boidSeprationWeight;
+
+		// Alignment
+		for (int i = 0; i < m_nearbyEnemyCount; i++) {
+			alignment += m_nearbyEnemy[i]->m_velocity;
+		}
+		alignment /= (float)m_nearbyEnemyCount;
+		alignment *= m_boidsAlignmentWeight;
+
+		// Cohesion
+		for (int i = 0; i < m_nearbyEnemyCount; i++) {
+			cohesion += m_nearbyEnemy[i]->m_position;
+		}
+		cohesion /= (float)m_nearbyEnemyCount;
+		cohesion = (cohesion - m_position) * m_boidsCohesionWeight;
+	}
+	else {
+		Vec2 toPlayer = m_game->m_player->m_position - m_position;
+		toPlayer.Normalize();
+		Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
+
+		m_nextVelocity = m_velocity + playerForce * m_deltaSeconds;
+		m_nextVelocity = m_nextVelocity.GetClamped(m_maxSpeed);
+		return;
+	}
+
+	Vec2 toPlayer = m_game->m_player->m_position - m_position;
+	toPlayer.Normalize();
+	Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
+
+	m_nextVelocity = m_velocity + (separation + alignment + cohesion + playerForce) * m_deltaSeconds;
+	m_nextVelocity = m_nextVelocity.GetClamped(m_maxSpeed);
 }

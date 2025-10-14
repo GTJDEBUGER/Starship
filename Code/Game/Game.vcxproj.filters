@@ -43,6 +43,9 @@
     <ClCompile Include="Debris.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="ShockWave.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PlayerShip.hpp">
@@ -77,6 +80,9 @@
     </ClInclude>
     <ClInclude Include="EngineBuildPreferences.hpp">
       <Filter>Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="ShockWave.hpp">
+      <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

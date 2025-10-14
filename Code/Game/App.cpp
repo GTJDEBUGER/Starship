@@ -26,7 +26,21 @@ App::App()
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/Respawn.wav");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyGetHurt.wav");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyDie.wav");
-	g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/WaveStart.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/PlayerLevelUp.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/AsteroidBreak.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShockWaveSpawn.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/ChooseUpgrade.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/ConfirmUpgrade.mp3");
+
+	SoundID attractSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/AttractModeBGM.mp3");
+	m_attractSoundPlaybackID = g_engine->m_audio->StartSound(attractSound, true, 1.0f, 0.f, 0.f);
+
+	SoundID gameSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/GameModeBGM.mp3");
+	m_gameSoundPlaybackID = g_engine->m_audio->StartSound(gameSound, true, 1.0f, 0.f, 0.f);
+
+	SoundID accelerateSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
+	m_accelerateSoundPlaybackID = g_engine->m_audio->StartSound(accelerateSound, true, 1.0f, 0.f, 0.f);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -123,14 +137,29 @@ void App::HandlePlayerInput(){
 		m_singleStep = true;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) {
-		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
+	if (g_engine->m_input->IsKeyDown(KEYCODE_SPACE)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
 			m_isFiring = true;
 		}
-		else {
+		else if(m_game->GetCurGameState() == GAME_ATTRACT_MODE){
 			delete m_game;
 			m_game = new Game();
-			m_game->SetNextGameState(GAME_PLAYING);
+			m_game->SetNextGameState(GAME_PLAYING_MODE);
+		}
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_ENTER)) {
+		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
+			SoundID confirmSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ConfirmUpgrade.mp3");
+			g_engine->m_audio->StartSound(confirmSound, false, 2.f, 0.f, 1.f);
+
+			if (m_game->m_player->m_upgradeTimes > 0) {
+				m_game->m_player->GainUpgrade(m_game->GetChoseUpgrade());
+				m_game->SetNextGameState(GAME_PLAYER_UPGRADE_MODE);
+			}
+			else {
+				m_game->SetNextGameState(GAME_PLAYING_MODE);
+			}
 		}
 	}
 
@@ -145,7 +174,7 @@ void App::HandlePlayerInput(){
 		else {
 			delete m_game;
 			m_game = new Game();
-			m_game->SetNextGameState(GAME_PLAYING);
+			m_game->SetNextGameState(GAME_PLAYING_MODE);
 		}
 	}
 
@@ -168,12 +197,22 @@ void App::HandlePlayerInput(){
 
 	if ((g_engine->m_input->WasKeyJustPressed('F') || g_engine->m_input->IsKeyDown('F'))
 		&& !(g_engine->m_input->WasKeyJustPressed('S') || g_engine->m_input->IsKeyDown('S'))) {
-		m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
+		}
+		else if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE && !g_engine->m_input->IsKeyDown('F')) {
+			m_game->GetNextUpgradeChoose();
+		}
 	}
 
 	if ((g_engine->m_input->WasKeyJustPressed('S') || g_engine->m_input->IsKeyDown('S'))
 		&& !(g_engine->m_input->WasKeyJustPressed('F') || g_engine->m_input->IsKeyDown('F'))) {
-		m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
+		}
+		else if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE && !g_engine->m_input->IsKeyDown('S')) {
+			m_game->GetPreviousUpgradeChoose();
+		}
 	}
 
 
@@ -181,7 +220,7 @@ void App::HandlePlayerInput(){
 		m_isSlowDown = false;
 	}
 
-	if (g_engine->m_input->WasKeyJustReleased('E')) {
+	if (g_engine->m_input->WasKeyJustReleased('E') || !g_engine->m_input->IsKeyDown('E')) {
 		m_game->m_player->m_acceleration = 0;
 	}
 
@@ -193,32 +232,58 @@ void App::HandlePlayerInput(){
 	//Controller control
 	//-------------------------------------------------------------------------------------------
 	if (g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude()>0) {
-		m_game->m_player->m_orientationDegrees = g_engine->m_input->GetController(0).GetLeftStick().GetOrientationDegrees();
-		m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION * g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude();
-	}
-	else if(!g_engine->m_input->IsKeyDown('E')){
-		m_game->m_player->m_acceleration = 0;
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			m_game->m_player->m_orientationDegrees = g_engine->m_input->GetController(0).GetLeftStick().GetOrientationDegrees();
+			m_game->m_player->m_acceleration = PLAYER_SHIP_ACCELERATION * g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude();
+		}
 	}
 
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
-		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
+	if (g_engine->m_input->GetController(0).IsButtonDown(XboxButtonID::GAMEPAD_A)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
 			m_isFiring = true;
 		}
-		else {
+		else if(m_game->GetCurGameState() == GAME_ATTRACT_MODE){
 			delete m_game;
 			m_game = new Game();
-			m_game->SetNextGameState(GAME_PLAYING);
+			m_game->SetNextGameState(GAME_PLAYING_MODE);
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_START)) {
-		if (m_game->GetCurGameState() != GAME_ATTRACT_MODE) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
 			m_isPlayerRespawn = true;
 		}
-		else {
+		else if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
 			delete m_game;
 			m_game = new Game();
-			m_game->SetNextGameState(GAME_PLAYING);
+			m_game->SetNextGameState(GAME_PLAYING_MODE);
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_DPAD_RIGHT)) {
+		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
+			m_game->GetNextUpgradeChoose();
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_DPAD_LEFT)) {
+		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
+			m_game->GetPreviousUpgradeChoose();
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_X)) {
+		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
+			SoundID confirmSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ConfirmUpgrade.mp3");
+			g_engine->m_audio->StartSound(confirmSound, false, 2.f, 0.f, 1.f);
+
+			if (m_game->m_player->m_upgradeTimes > 0) {
+				m_game->m_player->GainUpgrade(m_game->GetChoseUpgrade());
+				m_game->SetNextGameState(GAME_PLAYER_UPGRADE_MODE);
+			}
+			else {
+				m_game->SetNextGameState(GAME_PLAYING_MODE);
+			}
 		}
 	}
 }

@@ -19,7 +19,9 @@ public:
 	bool IsOffScreen() const;
 	Vec2 GetForwardVector() const;
 
-	void SetPositionRandomOffscreen();
+	void SetPositionRandomOffWorld();
+	void SetPositionRandomOffScreen(Vec2 screenCenter);
+	bool BoundaryTeleport();
 
 public:
 	Vec2 m_position;

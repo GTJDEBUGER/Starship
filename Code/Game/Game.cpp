@@ -2,13 +2,13 @@
 
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
-#include "Engine/Core/Rgba8.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Renderer/Camera.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
 #include "Engine/Renderer/SimpleTriangleFont.hpp"
+#include "Engine/Core/StringUtils.hpp"
 
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
@@ -19,18 +19,17 @@
 #include "Game/WaspEnemy.hpp"
 #include "Game/App.hpp"
 #include "Game/Debris.hpp"
+#include "Game/ShockWave.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Game::Game()
 {
+	m_player = new PlayerShip(this);
 	InitialObjectPools();
 	SetUpLevel(m_curLevelIndex);
-	m_player = new PlayerShip(this);
-	m_worldCamera = new Camera(Vec2(0.f, 0.f), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+	m_worldCamera = new Camera(Vec2(WORLD_CENTER_X - VIEW_CENTER_X, WORLD_CENTER_Y - VIEW_CENTER_Y), Vec2(WORLD_CENTER_X+VIEW_CENTER_X, WORLD_CENTER_Y+VIEW_CENTER_Y));
 	m_screenCamera = new Camera(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y));
 	m_randomGenerator = new RandomNumberGenerator();
-
-	m_attractModeBoids = new AttractModeBoidsEntity[MAX_ATTRACTMODE_BOIDS];
 
 	m_attractModeBoids[0].boidsType = 0;
 	m_attractModeBoids[0].isActive = true;
@@ -38,19 +37,32 @@ Game::Game()
 	m_attractModeBoids[0].velocity = Vec2(m_randomGenerator->RollRandomFloatInRange(-1.f, 1.f),
 		m_randomGenerator->RollRandomFloatInRange(-1.f, 1.f));
 	m_attractModeBoids[0].velocity.Normalize();
-	m_attractModeBoids[0].velocity *= m_boidsMaxSpeed * m_randomGenerator->RollRandomFloatInRange(25.f, 75.f);
-	m_attractModeBoids[0].nearbyRadius = 500.f;
+	m_attractModeBoids[0].velocity *= m_boidBeetleMaxSpeed * m_randomGenerator->RollRandomFloatInRange(25.f, 75.f);
+	m_attractModeBoids[0].bounderyRadius = 80.f;
+	m_attractModeBoids[0].nearbyRadius = 200.f;
 
 	for (int i = 1; i < MAX_ATTRACTMODE_BOIDS; i++) {
-		m_attractModeBoids[i].boidsType = 1;
+		m_attractModeBoids[i].boidsType = m_randomGenerator->RollRandomIntInRange(1,2);
 		m_attractModeBoids[i].isActive = true;
 		m_attractModeBoids[i].worldPos = Vec2(m_randomGenerator->RollRandomFloatInRange(0.f, SCREEN_SIZE_X),
 			m_randomGenerator->RollRandomFloatInRange(0.f, SCREEN_SIZE_Y));
 		m_attractModeBoids[i].velocity = Vec2(m_randomGenerator->RollRandomFloatInRange(-1.f, 1.f),
 			m_randomGenerator->RollRandomFloatInRange(-1.f, 1.f));
 		m_attractModeBoids[i].velocity.Normalize();
-		m_attractModeBoids[i].velocity *= m_boidsMaxSpeed * m_randomGenerator->RollRandomFloatInRange(25.f, 75.f);
+		m_attractModeBoids[i].velocity *= m_boidBeetleMaxSpeed * m_randomGenerator->RollRandomFloatInRange(25.f, 75.f);
 	}
+
+	m_attractModeStarsMesh = new Vertex[MAX_ATTRACTMODE_STAR * 24];
+	m_nearStarsMesh = new Vertex[MAX_NEAR_STAR*24];
+	m_farStarsMesh = new Vertex[MAX_FAR_STAR * 24];
+	GenerateStarsMesh(MAX_ATTRACTMODE_STAR, m_attractModeStarsMesh, 
+		Vec2(0,0), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y), 0.5f, 1.f, Rgba8(200, 200, 200, 255), Rgba8(255, 255, 255, 255));
+	GenerateStarsMesh(MAX_NEAR_STAR, m_nearStarsMesh, 
+		Vec2(-m_starFieldExpandDistance, -m_starFieldExpandDistance), Vec2(WORLD_SIZE_X + m_starFieldExpandDistance, WORLD_SIZE_Y + m_starFieldExpandDistance), 
+		0.3f, 0.6f, Rgba8(200, 200, 200, 255), Rgba8(255, 255, 255, 255));
+	GenerateStarsMesh(MAX_FAR_STAR, m_farStarsMesh, 
+		Vec2(-m_starFieldExpandDistance, -m_starFieldExpandDistance), Vec2(WORLD_SIZE_X + m_starFieldExpandDistance, WORLD_SIZE_Y + m_starFieldExpandDistance), 
+		0.2f, 0.3f, Rgba8(200, 200, 200, 255), Rgba8(255, 255, 255, 255));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -73,12 +85,43 @@ Game::~Game()
 //-----------------------------------------------------------------------------------------------
 void Game::Update(float deltaSeconds)
 {
+	m_deltaSeconds = deltaSeconds;
+	m_gameRunTime += deltaSeconds;
+	//-----------------------------------------------------------------------------------------------
 	if (m_nextGameState != m_curGameState) {
 		m_curGameState = m_nextGameState;
 	}
 	//-----------------------------------------------------------------------------------------------
+	if (m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
+		m_playSoundSpeed = GetClamped(m_playSoundSpeed - m_playSoundSwitchSpeed * deltaSeconds, 0.5f, 1.f);
+		g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, m_playSoundSpeed);
+		if (m_playerUpgradeStartFlag) {
+			m_upgradeChooseHealth = 0;
+			m_upgradeChooseShield = m_randomGenerator->RollRandomIntInRange(1, 3);
+			m_upgradeChooseBullet = m_randomGenerator->RollRandomIntInRange(4, 7);
+			m_playerUpgradeStartFlag = false;
+		}
 
-	if (m_curGameState == GAME_PLAYING) {
+		if (m_player->m_upgradeTimes <= 0) {
+			SetNextGameState(GAME_PLAYING_MODE);
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------
+	if (m_curGameState == GAME_PLAYING_MODE) {
+		m_attractModeStartFlag = true;
+		m_playerUpgradeStartFlag = true;
+		m_playSoundSpeed = GetClamped(m_playSoundSpeed + m_playSoundSwitchSpeed * deltaSeconds, 0.f, 1.f);
+		g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, m_playSoundSpeed);
+
+		if (m_gameModeStartFlag) {
+			g_engine->m_audio->SetSoundPlaybackRestart(g_app->m_gameSoundPlaybackID);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 1.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, 0.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_accelerateSoundPlaybackID, 1.f);
+			m_gameModeStartFlag = false;
+		}
+
 		//-----------------------------------------------------------------------------------------------
 		if (m_quitFlag) {
 			m_waitedTime += deltaSeconds;
@@ -100,22 +143,25 @@ void Game::Update(float deltaSeconds)
 		HandleRespawnPlayerInput();
 		//-----------------------------------------------------------------------------------------------
 		CheckGotoNextLevel();
+		//-----------------------------------------------------------------------------------------------
+		UpdateCameras(deltaSeconds);
 
 		//-----------------------------------------------------------------------------------------------
-		DecayCameraShake(deltaSeconds);
-		m_worldCamera->ResetOrthoViewToBase();
-		m_worldCamera->Translate2D(Vec2(m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
-			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp));
+		m_waveAnimationTimeCount += deltaSeconds;
 	}
 	
 	//-----------------------------------------------------------------------------------------------
 	if(m_curGameState == GAME_ATTRACT_MODE) {
-		UpdateAllAttractModeBoids(deltaSeconds);
-
-		m_startButtonAnimationTimeCount += deltaSeconds;
-		if (m_startButtonAnimationTimeCount > m_startButtonAnimationTotalTime) {
-			m_startButtonAnimationTimeCount = 0;
+		m_gameModeStartFlag = true;
+		if (m_attractModeStartFlag) {
+			g_engine->m_audio->SetSoundPlaybackRestart(g_app->m_attractSoundPlaybackID);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, 1.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 0.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_accelerateSoundPlaybackID, 0.f);
+			m_attractModeStartFlag = false;
 		}
+
+		UpdateAllAttractModeBoids(deltaSeconds);
 
 		m_titleAnimationTimeCount += deltaSeconds;
 		if (m_titleAnimationTimeCount > m_titleAnimationTotalTime) {
@@ -126,15 +172,22 @@ void Game::Update(float deltaSeconds)
 		if (m_boidsAnimationTimeCount > m_boidsAnimationTotalTime) {
 			m_boidsAnimationTimeCount = 0;
 		}
+
+		m_boidsPlayerAnimationTimeCount += deltaSeconds;
+		if (m_boidsPlayerAnimationTimeCount > m_boidsPlayerAnimationTotalTime) {
+			m_boidsPlayerAnimationTimeCount = 0;
+		}
 	}
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::Render() const
 {
-	if (m_curGameState == GAME_PLAYING) {
-		//-----------------------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------------
+	if (m_curGameState == GAME_PLAYING_MODE || m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
+		//-------------------------------------------------------------------------------------------
 		g_engine->m_renderer->BeginCamera(*m_worldCamera);
+		RenderStars();
 
 		RenderPoolEntitys();
 
@@ -142,13 +195,15 @@ void Game::Render() const
 			m_player->Render();
 		}
 
+		RenderWorldBoundary();
+
 		if (g_app->m_isDebugDraw) {
 			RenderDebugThings();
 		}
 
 		g_engine->m_renderer->EndCamera(*m_worldCamera);
 
-		//-----------------------------------------------------------------------------------------------
+		//------------------------------------------------------------------------------------------
 
 		g_engine->m_renderer->BeginCamera(*m_screenCamera);
 
@@ -157,9 +212,10 @@ void Game::Render() const
 		g_engine->m_renderer->EndCamera(*m_screenCamera);
 	}
 
+	//----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_ATTRACT_MODE) {
 		g_engine->m_renderer->BeginCamera(*m_screenCamera);
-
+		RenderStars();
 		if (g_app->m_isDebugDraw) {
 			RenderDebugThings();
 		}
@@ -187,6 +243,9 @@ void Game::InitialObjectPools() {
 	}
 	for (int i = 0; i < MAX_DEBRIS; i++) {
 		m_debris[i] = nullptr;
+	}
+	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
+		m_shockWaves[i] = nullptr;
 	}
 }
 
@@ -224,6 +283,12 @@ void Game::DeleteObjectPools() {
 		if (m_debris[i] != nullptr) {
 			delete m_debris[i];
 			m_debris[i] = nullptr;
+		}
+	}
+	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
+		if (m_shockWaves[i] != nullptr) {
+			delete m_shockWaves[i];
+			m_shockWaves[i] = nullptr;
 		}
 	}
 }
@@ -276,6 +341,14 @@ void Game::UpdateEntities(float deltaSeconds) {
 			}
 		}
 	}
+	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
+		if (m_shockWaves[i] != nullptr) {
+			m_shockWaves[i]->Update(deltaSeconds);
+			if (m_shockWaves[i]->m_isDead) {
+				m_shockWaves[i] = nullptr;
+			}
+		}
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -288,53 +361,36 @@ void Game::HandleEntitiesCollide() {
 			}
 		}
 	}
-
-	for (int i = 0; i < MAX_ASTEROIDS; i++) {
-		for (int j = i + 1; j < MAX_ASTEROIDS; j++) {
-			if (m_asteroids[i] != nullptr && m_asteroids[j] != nullptr) {
-				if (PushDiscsOutOfEachOther2D(m_asteroids[i]->m_position, ASTEROID_PHYSICS_RADIUS,
-					               m_asteroids[j]->m_position, ASTEROID_PHYSICS_RADIUS)) {
-					if (DotProduct2D(m_asteroids[i]->m_velocity, m_asteroids[j]->m_velocity) < 0.f) {
-						m_asteroids[i]->m_velocity.Reflect(m_asteroids[i]->m_position - m_asteroids[j]->m_position);
-						m_asteroids[i]->m_velocity.Normalize();
-						m_asteroids[j]->m_velocity.Reflect(m_asteroids[j]->m_position - m_asteroids[i]->m_position);
-						m_asteroids[j]->m_velocity.Normalize();
-					}
-					else {
-						float asteroidISpeed = m_asteroids[i]->m_velocity.GetLength();
-						float asteroidJSpeed = m_asteroids[j]->m_velocity.GetLength();
-						
-						m_asteroids[i]->m_velocity = m_asteroids[i]->m_velocity / asteroidISpeed * asteroidJSpeed;
-						m_asteroids[j]->m_velocity = m_asteroids[j]->m_velocity / asteroidJSpeed * asteroidISpeed;
-					}
-				}
-			}
-		}
-	}
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::HandleFiringInput() {
 	if (g_app->m_isFiring && m_player != nullptr) {
-		if (!m_player->m_isDead) {
-			int freeBulletIndex = -1;
-			for (int i = 0; i < MAX_BULLETS; i++) {
-				if (m_bullets[i] == nullptr) {
-					freeBulletIndex = i;
-					break;
+		if (!m_player->m_isDead && m_player->m_fireTimer == m_player->m_fireInterval) {
+			for (int i = 0; i < m_player->m_fireBranch; i++) {
+				int freeBulletIndex = -1;
+				for (int j = 0; j < MAX_BULLETS; j++) {
+					if (m_bullets[j] == nullptr) {
+						freeBulletIndex = j;
+						break;
+					}
+				}
+
+				if (freeBulletIndex > -1) {
+					m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector(),
+						 Vec2::MakeFromPolarDegrees(m_player->m_orientationDegrees + 
+													m_player->m_fireAngle/2.f - 
+													(i+1)*(m_player->m_fireAngle/(m_player->m_fireBranch+1)
+													+ m_randomGenerator->RollRandomFloatInRange(-m_player->m_randomFireAngle, m_player->m_randomFireAngle))));
+
+					SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
+					g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
+				}
+				else {
+					ERROR_RECOVERABLE("Run out bullets!")
 				}
 			}
-
-			if (freeBulletIndex > -1) {
-				m_bullets[freeBulletIndex] = new Bullet(this, m_player->m_position + m_player->GetForwardVector(),
-					m_player->GetForwardVector());
-
-				SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
-				g_engine->m_audio->StartSound(shootSound,false,1.0f,0.f, m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
-			}
-			else {
-				ERROR_RECOVERABLE("Run out bullets!")
-			}
+			m_player->m_fireTimer = 0.f;
 		}
 
 		g_app->m_isFiring = false;
@@ -377,6 +433,7 @@ void Game::HandleRespawnPlayerInput() {
 				m_player->m_orientationDegrees = 0.f;
 				m_player->m_isDead = false;
 				m_player->m_health--;
+				m_player->m_healthBarVal = m_player->m_healthBarMax;
 
 				SoundID respawnSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Respawn.wav");
 				g_engine->m_audio->StartSound(respawnSound, false, 1.0f, 0.f, 1.f);
@@ -388,6 +445,16 @@ void Game::HandleRespawnPlayerInput() {
 	else if (g_app->m_isPlayerRespawn) {
 		g_app->m_isPlayerRespawn = false;
 	}
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::UpdateCameras(float deltaSeconds) {
+	DecayCameraShake(deltaSeconds);
+
+	m_worldCamera->LookAt2D(m_player->m_position, Vec2(-VIEW_CENTER_X, -VIEW_CENTER_Y), Vec2(VIEW_CENTER_X, VIEW_CENTER_Y));
+	m_worldCamera->ConstrainOrthoView(Vec2(0, 0), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
+	m_worldCamera->Translate2D(Vec2(m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
+		m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp));
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -422,11 +489,17 @@ void Game::RenderPoolEntitys() const{
 			m_debris[i]->Render();
 		}
 	}
+	for (int i = 0; i < MAX_SHOCKWAVE; i++)
+	{
+		if (m_shockWaves[i] != nullptr) {
+			m_shockWaves[i]->Render();
+		}
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::RenderDebugThings() const {
-	if (m_curGameState == GAME_PLAYING) {
+	if (m_curGameState == GAME_PLAYING_MODE) {
 		float drawThickness = .2f;
 		if (m_player != nullptr)
 		{
@@ -468,6 +541,7 @@ void Game::RenderDebugThings() const {
 
 				DebugDrawRing(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_cosmeticRadius, Rgba8(255, 0, 255, 255), drawThickness);
 				DebugDrawRing(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_physicsRadius, Rgba8(0, 255, 255, 255), drawThickness);
+				DebugDrawRing(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_nearbyRadius, Rgba8(255, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + Vec2(CosDegrees(m_beetleEnemy[i]->m_orientationDegrees), SinDegrees(m_beetleEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
 				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + Vec2(-SinDegrees(m_beetleEnemy[i]->m_orientationDegrees), CosDegrees(m_beetleEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_beetleEnemy[i]->m_position, m_beetleEnemy[i]->m_position + m_beetleEnemy[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
@@ -480,6 +554,7 @@ void Game::RenderDebugThings() const {
 
 				DebugDrawRing(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_cosmeticRadius, Rgba8(255, 0, 255, 255), drawThickness);
 				DebugDrawRing(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_physicsRadius, Rgba8(0, 255, 255, 255), drawThickness);
+				DebugDrawRing(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_nearbyRadius, Rgba8(255, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_position + Vec2(CosDegrees(m_waspEnemy[i]->m_orientationDegrees), SinDegrees(m_waspEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(255, 0, 0, 255), drawThickness);
 				DebugDrawLine(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_position + Vec2(-SinDegrees(m_waspEnemy[i]->m_orientationDegrees), CosDegrees(m_waspEnemy[i]->m_orientationDegrees)) * 4.f, Rgba8(0, 255, 0, 255), drawThickness);
 				DebugDrawLine(m_waspEnemy[i]->m_position, m_waspEnemy[i]->m_position + m_waspEnemy[i]->m_velocity, Rgba8(255, 255, 0, 255), drawThickness);
@@ -503,6 +578,8 @@ void Game::RenderDebugThings() const {
 			if (m_attractModeBoids[i].isActive) {
 				DebugDrawRing(m_attractModeBoids[i].worldPos, m_attractModeBoids[i].bounderyRadius, Rgba8(255, 0, 0, 255), 1.f);
 				DebugDrawRing(m_attractModeBoids[i].worldPos, m_attractModeBoids[i].nearbyRadius, Rgba8(0, 255, 0, 255), 1.f);
+				DebugDrawLine(m_attractModeBoids[i].worldPos, m_attractModeBoids[i].worldPos+m_attractModeBoids[i].velocity,
+					Rgba8(0,0,(unsigned char)(255.f * (float)m_attractModeBoids[i].neighborCount/10.f), 255), 1.f);
 			}
 		}
 	}
@@ -510,6 +587,9 @@ void Game::RenderDebugThings() const {
 
 //---------------------------------------------------------------------------------------------------
 void Game::SetUpLevel(int levelIndex) {
+	SoundID waveSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/WaveStart.mp3");
+	g_engine->m_audio->StartSound(waveSound, false, 2.0f, 0.f, 1.f);
+
 	for (int i = 0; i < levels[levelIndex].asteroidNum; i++) {
 		int freeAsteroidIndex = -1;
 		for (int j = 0; j < MAX_ASTEROIDS; j++) {
@@ -547,6 +627,7 @@ void Game::CheckGotoNextLevel() {
 
 	if (flag) {
 		m_curLevelIndex++;
+		m_waveAnimationTimeCount = 0;
 		if (m_curLevelIndex < sizeof(levels) / sizeof(GameLevel)) {
 			SetUpLevel(m_curLevelIndex);
 		}
@@ -558,15 +639,235 @@ void Game::CheckGotoNextLevel() {
 
 //--------------------------------------------------------------------------------------------------
 void Game::RenderUI() const {
-	Vertex worldMesh[PlayerShip::m_vertexNum];
-	float screenScale = SCREEN_SIZE_X / WORLD_SIZE_X;
-	for (int i = 0; i < m_player->m_health; i++) {
-		PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, worldMesh);
-		TransformVertexArrayXY3D(15, worldMesh, screenScale, 90.f, 
-			Vec2(screenScale * PLAYER_SHIP_COSMETIC_RADIUS * (2*i+1), 
-				 SCREEN_SIZE_Y - screenScale * PLAYER_SHIP_COSMETIC_RADIUS));
-		g_engine->m_renderer->DrawVertexArray(15, worldMesh);
+	RenderUIHealthBar();
+	if (m_player->m_shieldBarMax > 0) {
+		RenderUIShieldBar();
 	}
+	RenderUIHealth();
+	RenderUIMiniMap();
+	RenderUIWaves();
+	RenderUIExpBar();
+
+	if (m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
+		RenderUIUpgrade();
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIHealthBar() const {
+	DebugDrawAABB(Vec2(12.5f, SCREEN_SIZE_Y - 7.5f - 25.f), Vec2(7.5f + 600.f, SCREEN_SIZE_Y - 12.5f),
+				  Rgba8(180,180,180,255), Rgba8(224,224,224,255), Rgba8(224,224,224,255));
+	
+	float healthGridSize = 590.f / m_player->m_healthBarMax;
+	for (int i = 0; i < m_player->m_healthBarMax; i++) {
+		DebugDrawAABB(Vec2(15.f + i * healthGridSize, SCREEN_SIZE_Y - 5.f - 25.f), Vec2(15.f + (i + 1) * healthGridSize, SCREEN_SIZE_Y - 15.f),
+			Rgba8(64, 64, 64, 255), Rgba8(128, 128, 128, 255), Rgba8(64, 64, 64, 255));
+	}
+	for (int i = 0; i < m_player->m_healthBarVal; i++) {
+		DebugDrawAABB(Vec2(15.f + i*healthGridSize , SCREEN_SIZE_Y - 5.f - 25.f), Vec2(15.f + (i+1) * healthGridSize, SCREEN_SIZE_Y - 15.f),
+			Rgba8(255, 32, 32, 255), Rgba8(255, 128, 128, 255), Rgba8(255, 128, 128, 255));
+	}
+}
+
+void Game::RenderUIShieldBar() const {
+	DebugDrawAABB(Vec2(12.5f, SCREEN_SIZE_Y - 7.5f - 50.f), Vec2(7.5f + 400.f, SCREEN_SIZE_Y - 37.5f),
+		Rgba8(180, 180, 180, 255), Rgba8(224, 224, 224, 255), Rgba8(224, 224, 224, 255));
+
+	float shieldGridSize = 390.f / m_player->m_shieldBarMax;
+	for (int i = 0; i < m_player->m_shieldBarMax; i++) {
+		DebugDrawAABB(Vec2(15.f + i * shieldGridSize, SCREEN_SIZE_Y - 5.f - 50.f), Vec2(15.f + (i + 1) * shieldGridSize, SCREEN_SIZE_Y - 40.f),
+			Rgba8(64, 64, 64, 255), Rgba8(128, 128, 128, 255), Rgba8(64, 64, 64, 255));
+	}
+	for (int i = 0; i < m_player->m_shieldBarVal; i++) {
+		DebugDrawAABB(Vec2(15.f + i * shieldGridSize, SCREEN_SIZE_Y - 5.f - 50.f), Vec2(15.f + (i + 1) * shieldGridSize, SCREEN_SIZE_Y - 40.f),
+			Rgba8(102, 153, 204, 255), Rgba8(102, 153, 204, 128), Rgba8(102, 153, 204, 128));
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIHealth() const{
+	Vertex screenPlayerHealthMesh[PlayerShip::m_vertexNum];
+	for (int i = 0; i < m_player->m_health; i++) {
+		PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, screenPlayerHealthMesh);
+		TransformVertexArrayXY3D(15, screenPlayerHealthMesh, 4.f, 90.f,
+			Vec2(15.f + 4.f * PLAYER_SHIP_COSMETIC_RADIUS * (2 * i + 1),
+				(m_player->m_shieldBarMax > 0 ? -60.f : -35.f)
+				+ SCREEN_SIZE_Y - 4.f * PLAYER_SHIP_COSMETIC_RADIUS));
+		g_engine->m_renderer->DrawVertexArray(15, screenPlayerHealthMesh);
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIMiniMap() const {
+	DebugDrawAABB(m_miniMapCenter + Vec2(- WORLD_CENTER_X, -WORLD_CENTER_Y)*m_miniMapReduceRatio, 
+				  m_miniMapCenter + Vec2(WORLD_CENTER_X, WORLD_CENTER_Y)*m_miniMapReduceRatio,
+				  m_miniMapGridLineColor, m_miniMapGridLineColor, Rgba8(0,0,0,0));
+
+	for (int i = 0; i <= m_miniMapGridNum; i++) {
+		Vec2 xBias = Vec2(-WORLD_CENTER_X + (float)i/(float)m_miniMapGridNum * WORLD_SIZE_X, WORLD_CENTER_Y) * m_miniMapReduceRatio;
+		Vec2 yBias = Vec2(-WORLD_CENTER_X, WORLD_CENTER_Y - (float)i / (float)m_miniMapGridNum * WORLD_SIZE_Y) * m_miniMapReduceRatio;
+		DebugDrawLine(m_miniMapCenter + xBias, m_miniMapCenter + xBias + Vec2(0, -WORLD_SIZE_Y * m_miniMapReduceRatio), m_miniMapGridLineColor, m_miniMapGridLineThickness);
+		DebugDrawLine(m_miniMapCenter + yBias, m_miniMapCenter + yBias + Vec2(WORLD_SIZE_X*m_miniMapReduceRatio, 0), m_miniMapGridLineColor, m_miniMapGridLineThickness);
+	}
+
+	DebugDrawLine(m_miniMapOrigin + m_worldCamera->GetOrthoBottomLeft() * m_miniMapReduceRatio, 
+				  m_miniMapOrigin + m_worldCamera->GetOrthoTopLeft() * m_miniMapReduceRatio, m_miniMapViewFieldColor, 2 * m_miniMapGridLineThickness);
+	DebugDrawLine(m_miniMapOrigin + m_worldCamera->GetOrthoTopLeft() * m_miniMapReduceRatio,
+				  m_miniMapOrigin + m_worldCamera->GetOrthoTopRight() * m_miniMapReduceRatio, m_miniMapViewFieldColor, 2 * m_miniMapGridLineThickness);
+	DebugDrawLine(m_miniMapOrigin + m_worldCamera->GetOrthoTopRight() * m_miniMapReduceRatio,
+				  m_miniMapOrigin + m_worldCamera->GetOrthoBottomRight() * m_miniMapReduceRatio, m_miniMapViewFieldColor, 2 * m_miniMapGridLineThickness);
+	DebugDrawLine(m_miniMapOrigin + m_worldCamera->GetOrthoBottomRight() * m_miniMapReduceRatio,
+				  m_miniMapOrigin + m_worldCamera->GetOrthoBottomLeft() * m_miniMapReduceRatio, m_miniMapViewFieldColor, 2 * m_miniMapGridLineThickness);
+
+	Vec2 playerMiniMapPos = m_miniMapCenter + m_miniMapReduceRatio * (m_player->m_position - Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
+	DebugDrawLine(playerMiniMapPos, playerMiniMapPos + m_player->m_velocity.GetNormalized() * m_miniMapTokenSize * 3.f,
+		m_miniMapPlayerVelocityColor, m_miniMapGridLineThickness);
+	DebugDrawDisc(playerMiniMapPos, m_miniMapTokenSize, m_miniMapPlayerOuterColor, m_miniMapPlayerInnerColor);
+
+	for (int i = 0; i < MAX_ASTEROIDS; i++) {
+		if (m_asteroids[i] != nullptr) {
+			Vec2 miniMapPos = m_miniMapCenter + m_miniMapReduceRatio * (m_asteroids[i]->m_position - Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
+			DebugDrawDisc(miniMapPos, m_miniMapTokenSize, m_miniMapAsteroidOuterColor, m_miniMapAsteroidInnerColor);
+		}
+	}
+
+	for (int i = 0; i < MAX_BEETLES; i++) {
+		if (m_beetleEnemy[i] != nullptr) {
+			Vec2 miniMapPos = m_miniMapCenter + m_miniMapReduceRatio * (m_beetleEnemy[i]->m_position - Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
+			DebugDrawDisc(miniMapPos, m_miniMapTokenSize, m_miniMapBeetleOuterColor, m_miniMapBeetleInnerColor);
+		}
+	}
+
+	for (int i = 0; i < MAX_WASPS; i++) {
+		if (m_waspEnemy[i] != nullptr) {
+			Vec2 miniMapPos = m_miniMapCenter + m_miniMapReduceRatio * (m_waspEnemy[i]->m_position - Vec2(WORLD_CENTER_X, WORLD_CENTER_Y));
+			DebugDrawDisc(miniMapPos, m_miniMapTokenSize, m_miniMapWaspOuterColor, m_miniMapWaspInnerColor);
+		}
+	}
+
+	DebugDrawLine(m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(-m_miniMapFrameThickness/2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(-m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f), 
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(-WORLD_CENTER_X, WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(-m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(WORLD_CENTER_X, WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f), 
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(WORLD_CENTER_X, WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f), 
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(-m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f), 
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	
+	DebugDrawAABB(m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50),
+		m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15),
+		m_miniMapGridLineColor, m_miniMapGridLineColor, Rgba8(0, 0, 0, 0));
+	std::vector<Vertex> textVertex;
+	AddVertsForTextTriangles2D(textVertex, Stringf("SPEED:%f", m_player->m_curSpeed),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(2.5f, -46.f),
+		20.5f,
+		Rgba8(0, 255, 0, 64), 0.5f);
+	AddVertsForTextTriangles2D(textVertex, Stringf("SPEED:%f", m_player->m_curSpeed),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(5.f, -45.f),
+		20.f,
+		Rgba8(0, 255, 0, 224), 0.5f);
+	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
+	DebugDrawLine(m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50) + Vec2(-m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15) + Vec2(-m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15) + Vec2(-m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15) + Vec2(m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15) + Vec2(m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50) + Vec2(m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+	DebugDrawLine(m_miniMapCenter + Vec2(WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50) + Vec2(m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50) + Vec2(-m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
+		m_miniMapFrameColor, m_miniMapFrameThickness);
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIWaves() const {
+	float waveFraction = GetClamped(m_waveAnimationTimeCount / m_waveAnimationTotalTime, 0.f, 1.f);
+	std::vector<Vertex> textVertex;
+	AddVertsForTextTriangles2D(textVertex, Stringf("WAVE-%d", m_curLevelIndex+1),
+		Vec2(0, 0),
+		50.f,
+		Rgba8(255, 255, 255, (unsigned char) (255.f * SinDegrees(waveFraction*180.f))), 0.5f);
+	TransformVertexArrayXY3D((int)textVertex.size(), textVertex.data(), 1.f, 0.f,
+		Vec2(SCREEN_CENTER_X - 100.f, SCREEN_CENTER_Y + 200.f));
+	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIExpBar() const {
+	DebugDrawAABB(Vec2(15.f, 5.f), Vec2(SCREEN_SIZE_X - 15.f, 20.f),
+		Rgba8(180, 180, 180, 255), Rgba8(224, 224, 224, 255), Rgba8(224, 224, 224, 255));
+
+	float expGridSize = (SCREEN_SIZE_X - 35.f) / m_player->m_nextLevelExpVal;
+	for (int i = 0; i < m_player->m_nextLevelExpVal; i++) {
+		DebugDrawAABB(Vec2(17.5f + i * expGridSize, 7.5f), Vec2(17.f + (i + 1) * expGridSize, 17.5f),
+			Rgba8(64, 64, 64, 255), Rgba8(128, 128, 128, 255), Rgba8(64, 64, 64, 255));
+	}
+	for (int i = 0; i < m_player->m_expBarVal; i++) {
+		DebugDrawAABB(Vec2(17.5f + i * expGridSize, 7.5f), Vec2(17.5f + (i + 1) * expGridSize, 17.5f),
+			Rgba8(64, 128, 64, 255), Rgba8(96, 200, 96, 128), Rgba8(96, 200, 96, 255));
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderUIUpgrade() const {
+	DebugDrawAABB(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y),
+		Rgba8(102, 204, 153, 64), Rgba8(102, 204, 153, 64), Rgba8(102, 204, 153, 16));
+
+	std::vector<Vertex> textVertex;
+	AddVertsForTextTriangles2D(textVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 450.f, SCREEN_SIZE_Y - 72.5f), 50.5f, Rgba8(0, 128, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 445.f, SCREEN_SIZE_Y - 70.f), 50.f, Rgba8(0, 200, 0, 255));
+
+	AddVertsForTextTriangles2D(textVertex, "KEYBOARD: CHOOSE LEFT(S) CHOOSE RIGHT(F) CONFIRM(ENTER)", Vec2(15.f, 35.f), 10.f, Rgba8(0, 128, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, "CONTROLLER: CHOOSE LEFT(DEPAD-L) CHOOSE RIGHT(DEPAD-R) CONFIRM(X)", Vec2(15.f, 20.f), 10.f, Rgba8(0, 128, 0, 255));
+	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
+
+	std::vector<Vertex> shineTextVertex;
+	AddVertsForTextTriangles2D(shineTextVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 445.f, SCREEN_SIZE_Y - 70.f), 50.f, Rgba8(0, 200, 0, 255));
+	TransformVertexArrayShine((int)shineTextVertex.size(), shineTextVertex.data(), 1.f, 0.f,Vec2(0,0), 1.2f * m_gameRunTime);
+	g_engine->m_renderer->DrawVertexArray((int)shineTextVertex.size(), shineTextVertex.data());
+
+	RenderUIUpgradeItem(Vec2(SCREEN_CENTER_X - 350.f, SCREEN_CENTER_Y), m_playerUpgradeItems[m_upgradeChooseHealth], 0);
+	RenderUIUpgradeItem(Vec2(SCREEN_CENTER_X, SCREEN_CENTER_Y), m_playerUpgradeItems[m_upgradeChooseShield], 1);
+	RenderUIUpgradeItem(Vec2(SCREEN_CENTER_X + 350.f, SCREEN_CENTER_Y), m_playerUpgradeItems[m_upgradeChooseBullet], 2);
+}
+
+void Game::RenderUIUpgradeItem(Vec2 center, PlayerUpgradeItem content, int index) const {
+	DebugDrawAABB(center + Vec2(-m_upgradeItemWidth/2.f, -m_upgradeItemHeight/2.f), 
+		center + Vec2(m_upgradeItemWidth / 2.f, m_upgradeItemHeight / 2.f),
+		m_upgradeGridLineColor, m_upgradeGridLineColor, Rgba8(0, 0, 0, 0));
+
+	for (int i = 0; i <= m_upgradeGridNum; i++) {
+		Vec2 xBias = Vec2(-m_upgradeItemWidth / 2.f + (float)i / (float)m_upgradeGridNum * m_upgradeItemWidth, m_upgradeItemHeight/2.f);
+		Vec2 yBias = Vec2(-m_upgradeItemWidth / 2.f, m_upgradeItemHeight /2.f - (float)i / (float)m_upgradeGridNum * m_upgradeItemHeight);
+		DebugDrawLine(center + xBias, center + xBias + Vec2(0, -m_upgradeItemHeight), m_upgradeGridLineColor, m_upgradeGridLineThickness);
+		DebugDrawLine(center + yBias, center + yBias + Vec2(m_upgradeItemWidth, 0), m_upgradeGridLineColor, m_upgradeGridLineThickness);
+	}
+
+	std::vector<Vertex> textVertex;
+	if (content.hpUpgrade != NONE_HP_UPGRADE) {
+		AddVertsForTextTriangles2D(textVertex, "HELTH UPGRADE", center + Vec2( - 85.f, m_upgradeItemHeight/2.f - 30.f), 20.f, Rgba8(0, 255, 0, 255));
+	}
+	else if (content.shieldUpgrade != NONE_SHIELD_UPGRADE) {
+		AddVertsForTextTriangles2D(textVertex, "SHELD UPGRADE", center + Vec2(-85.f, m_upgradeItemHeight / 2.f - 30.f), 20.f, Rgba8(0, 255, 0, 255));
+	}
+	else if (content.bulletUpgrade != NONE_BULLET_UPGRADE) {
+		AddVertsForTextTriangles2D(textVertex, "BULLET UPGRADE", center + Vec2(-90.f, m_upgradeItemHeight / 2.f - 30.f), 20.f, Rgba8(0, 255, 0, 255));
+	}
+	AddVertsForTextTriangles2D(textVertex, content.upgradeDescribe, center + Vec2(-75.f, 0.f), 15.f, Rgba8(0, 255, 0, 255));
+	
+	if (m_upgradeChoose == index) {
+		AddVertsForTextTriangles2D(textVertex, Stringf("[Upgrade%d]", index+1), center + Vec2(-70.f, -m_upgradeItemHeight / 2.f - 30.f), 20.f, Rgba8(0, 255, 0, 255));
+	}
+	else {
+		AddVertsForTextTriangles2D(textVertex, Stringf("Upgrade%d", index+1), center + Vec2(-55.f, -m_upgradeItemHeight / 2.f - 30.f), 20.f, Rgba8(0, 128, 0, 255));
+	}
+	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -598,10 +899,38 @@ GameState Game::GetCurGameState() {
 }
 
 //--------------------------------------------------------------------------------------------------
+void Game::GetNextUpgradeChoose() {
+	SoundID selectSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ChooseUpgrade.mp3");
+	g_engine->m_audio->StartSound(selectSound, false, 1.1f, 0.f, m_randomGenerator->RollRandomFloatInRange(0.9f, 1.1f));
+	m_upgradeChoose = (m_upgradeChoose + 1) % m_upgradeChooseMax;
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::GetPreviousUpgradeChoose() {
+	SoundID selectSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ChooseUpgrade.mp3");
+	g_engine->m_audio->StartSound(selectSound, false, 1.1f, 0.f, m_randomGenerator->RollRandomFloatInRange(0.9f, 1.1f));
+	m_upgradeChoose = m_upgradeChoose - 1 > -1 ? m_upgradeChoose - 1 : m_upgradeChooseMax - 1;
+}
+
+//--------------------------------------------------------------------------------------------------
+PlayerUpgradeItem Game::GetChoseUpgrade() {
+	if (m_upgradeChoose == 0) {
+		return m_playerUpgradeItems[m_upgradeChooseHealth];
+	}
+
+	if (m_upgradeChoose == 1) {
+		return m_playerUpgradeItems[m_upgradeChooseShield];
+	}
+	
+	return m_playerUpgradeItems[m_upgradeChooseBullet];
+}
+
+//--------------------------------------------------------------------------------------------------
 void Game::RenderAttractMode() const {
 	g_engine->m_renderer->BeginCamera(*m_screenCamera);
 	float titleFraction = m_titleAnimationTimeCount / m_titleAnimationTotalTime;
 	float boidsFraction = m_boidsAnimationTimeCount / m_boidsAnimationTotalTime;
+	float playerFraction = m_boidsPlayerAnimationTimeCount / m_boidsPlayerAnimationTotalTime;
 
 	//-----------------------------------------------------------------------------------------------
 	Vertex worldMesh[WaspEnemy::m_vertexNum];
@@ -609,10 +938,33 @@ void Game::RenderAttractMode() const {
 		if (m_attractModeBoids[i].isActive) {
 			if (m_attractModeBoids[i].boidsType == 0) {
 				PlayerShip::GetLocalMesh(PlayerShip::m_vertexNum, worldMesh);
+				float flameLength = -2.f - 2.f * (m_attractModeBoids[i].velocity.GetLength() / m_boidPlayerMaxSpeed) * (m_randomGenerator->RollRandomFloatZeroToOne() * 0.5f + 1.f);
+				worldMesh[15] = Vertex(Vec3(-2.f, 1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
+				worldMesh[16] = Vertex(Vec3(-2.f, -1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
+				worldMesh[17] = Vertex(Vec3(flameLength, 0.f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
 				TransformVertexArrayXY3D(PlayerShip::m_vertexNum, worldMesh,
 					4.f, m_attractModeBoids[i].velocity.GetOrientationDegrees(),
 					m_attractModeBoids[i].worldPos);
 				g_engine->m_renderer->DrawVertexArray(PlayerShip::m_vertexNum, worldMesh);
+
+				DebugDrawDisc(m_attractModeBoids[i].worldPos, 
+							  m_attractModeBoids[i].nearbyRadius, 
+							  Rgba8(0, 255, 0, (unsigned char)Interpolate(64.f, 0.f, playerFraction)), Rgba8(0, 255, 0, 0));
+				DebugDrawDisc(m_attractModeBoids[i].worldPos, 
+							  Interpolate(0, m_attractModeBoids[i].nearbyRadius, playerFraction), 
+							  Rgba8(0, 255, 0, 64), Rgba8(0, 255, 0, 0));
+				DebugDrawDisc(m_attractModeBoids[i].worldPos, 20.f, Rgba8(102, 153, 204, 255), Rgba8(102, 153, 204, 0));
+				for (int j = 0; j < m_attractModeBoids[i].neighborCount; j++) {
+					Vec2 toPlayer = m_attractModeBoids[i].worldPos - m_boidPlayerNeighbors[j].worldPos;
+					float distance = toPlayer.GetLength();
+					if (distance > 1.5f * m_attractModeBoids[i].nearbyRadius) {
+						break;
+					}
+					toPlayer /= distance;
+					DebugDrawLine(m_attractModeBoids[i].worldPos - toPlayer * 20.f,
+						          m_boidPlayerNeighbors[j].worldPos + toPlayer * 20.f, Rgba8(255, 0, 0, (unsigned char)Interpolate(128.f, 32.f, playerFraction)), 1.f);
+					DebugDrawDisc(m_boidPlayerNeighbors[j].worldPos,20.f, Rgba8(255, 0, 0, (unsigned char)Interpolate(128.f, 32.f, playerFraction)), Rgba8(255, 0, 0, 0));
+				}
 			}
 			else if (m_attractModeBoids[i].boidsType == 1) {
 				BeetleEnemy::GetLocalMesh(BeetleEnemy::m_vertexNum, worldMesh);
@@ -624,29 +976,231 @@ void Game::RenderAttractMode() const {
 					m_attractModeBoids[i].worldPos);
 				g_engine->m_renderer->DrawVertexArray(BeetleEnemy::m_vertexNum - 6, worldMesh);
 			}
+			else if (m_attractModeBoids[i].boidsType == 2) {
+				WaspEnemy::GetLocalMesh(WaspEnemy::m_vertexNum, worldMesh);
+				for (int j = WaspEnemy::m_vertexNum - 24; j < WaspEnemy::m_vertexNum - 12; j++) {
+					worldMesh[j] = Interpolate(worldMesh[j], worldMesh[j + 12], SinDegrees(boidsFraction * 180.f));
+				}
+				TransformVertexArrayXY3D(WaspEnemy::m_vertexNum - 12, worldMesh,
+					4.f, m_attractModeBoids[i].velocity.GetOrientationDegrees(),
+					m_attractModeBoids[i].worldPos);
+				g_engine->m_renderer->DrawVertexArray(WaspEnemy::m_vertexNum - 12, worldMesh);
+			}
 		}
 	}
 
 	//-----------------------------------------------------------------------------------------------
 	std::vector<Vertex> textVertex;
 	AddVertsForTextTriangles2D(textVertex, "GOLD",
-		Vec2(SCREEN_CENTER_X + 300.f, SCREEN_SIZE_Y - 225.f),
-		150.f * Interpolate(m_titleScaleMin, m_titleScaleMax, SinDegrees(titleFraction * 180.f)),
-		Rgba8(255, 255, 0, 255), 0.5f);
+							Vec2(SCREEN_CENTER_X + 292.5f, SCREEN_SIZE_Y - 229.f),
+							155.f * Interpolate(m_titleScaleMin, m_titleScaleMax, SinDegrees(titleFraction * 180.f)),
+							Rgba8(128, 96, 0, 255), 0.5f);
+	AddVertsForTextTriangles2D(textVertex, "GOLD",
+							Vec2(SCREEN_CENTER_X + 300.f, SCREEN_SIZE_Y - 225.f),
+							150.f * Interpolate(m_titleScaleMin, m_titleScaleMax, SinDegrees(titleFraction * 180.f)),
+							Rgba8(255, 192, 0, 255), 0.5f);
 	TransformVertexArrayXY3D((int)textVertex.size(), textVertex.data(), 1.f, 0.f,
-		Vec2(0, Interpolate(-m_titleUpDownMax, m_titleUpDownMax, SinDegrees(titleFraction * 180.f)))
-	);
-	AddVertsForTextTriangles2D(textVertex, "STARTSHIP", Vec2(SCREEN_CENTER_X - 675.f, SCREEN_SIZE_Y - 225.f), 150.f, Rgba8(255, 255, 255, 255));
+							Vec2(0, Interpolate(-m_titleUpDownMax, m_titleUpDownMax, SinDegrees(titleFraction * 180.f))));
+	AddVertsForTextTriangles2D(textVertex, "STARTSHIP", Vec2(SCREEN_CENTER_X - 690.f, SCREEN_SIZE_Y - 229.f), 155.f, Rgba8(128, 128, 128, 255));
+	AddVertsForTextTriangles2D(textVertex, "STARTSHIP", Vec2(SCREEN_CENTER_X - 675.f, SCREEN_SIZE_Y - 225.f), 150.f, Rgba8(200, 200, 200, 255));
+
+	AddVertsForTextTriangles2D(textVertex, "PRESS KEYBOARD (SPACE) OR CONTROLLER (A) START GAME", 
+							Vec2(SCREEN_CENTER_X - 280.f,  30.f), 15.f, 
+							Rgba8(255, 255, 255, (unsigned char)(SinDegrees(titleFraction * 180.f) *200.f + 55.f)));
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
+
+	std::vector<Vertex> shineTextVertex;
+	AddVertsForTextTriangles2D(shineTextVertex, "GOLD",
+							Vec2(SCREEN_CENTER_X + 300.f, SCREEN_SIZE_Y - 225.f),
+							150.f * Interpolate(m_titleScaleMin, m_titleScaleMax, SinDegrees(titleFraction * 180.f)),
+							Rgba8(255, 255, 255, 0), 0.5f);
+
+	AddVertsForTextTriangles2D(shineTextVertex, "STARTSHIP", 
+							Vec2(SCREEN_CENTER_X - 675.f, SCREEN_SIZE_Y - 225.f), 150.f, Rgba8(255, 255, 255, 0));
+
+	TransformVertexArrayShine((int)shineTextVertex.size(), shineTextVertex.data(), 1.f, 0.f,
+							Vec2(0, Interpolate(-m_titleUpDownMax, m_titleUpDownMax, SinDegrees(titleFraction * 180.f))), 1.2f*m_gameRunTime);
+	g_engine->m_renderer->DrawVertexArray((int)shineTextVertex.size(), shineTextVertex.data());
 
 	g_engine->m_renderer->EndCamera(*m_screenCamera);
 }
 
 //--------------------------------------------------------------------------------------------------
+void Game::GenerateStarsMesh(int starCount, Vertex* starsMesh, 
+		Vec2 buttomLeft, Vec2 topRight, float starSizeMin, float starSizeMax, Rgba8 starColor1, Rgba8 starColor2) {
+	for (int i = 0; i < starCount * 24; i += 24) {
+		Vec2 randomPos = Vec2(m_randomGenerator->RollRandomFloatInRange(buttomLeft.x, topRight.x),
+							  m_randomGenerator->RollRandomFloatInRange(buttomLeft.x, topRight.x));
+		float randomSize = m_randomGenerator->RollRandomFloatInRange(starSizeMin, starSizeMax);
+		Rgba8 randomColor = Rgba8(
+			(unsigned char)m_randomGenerator->RollRandomFloatInRange(starColor1.r, starColor2.r),
+			(unsigned char)m_randomGenerator->RollRandomFloatInRange(starColor1.g, starColor2.g),
+			(unsigned char)m_randomGenerator->RollRandomFloatInRange(starColor1.b, starColor2.b),
+			(unsigned char)m_randomGenerator->RollRandomFloatInRange(starColor1.a, starColor2.a)
+		);
+
+		//Star Mesh
+		{
+			starsMesh[i] = Vertex(
+				Vec3(randomPos.x, randomPos.y + randomSize, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 1] = Vertex(
+				Vec3(randomPos.x + randomSize / 2.f, randomPos.y + randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 2] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 3] = Vertex(
+				Vec3(randomPos.x + randomSize / 2.f, randomPos.y + randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 4] = Vertex(
+				Vec3(randomPos.x + randomSize, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 5] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 6] = Vertex(
+				Vec3(randomPos.x + randomSize, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 7] = Vertex(
+				Vec3(randomPos.x + randomSize / 2.f, randomPos.y - randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 8] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 9] = Vertex(
+				Vec3(randomPos.x + randomSize / 2.f, randomPos.y - randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 10] = Vertex(
+				Vec3(randomPos.x, randomPos.y - randomSize, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 11] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 12] = Vertex(
+				Vec3(randomPos.x, randomPos.y - randomSize, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 13] = Vertex(
+				Vec3(randomPos.x - randomSize / 2.f, randomPos.y - randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 14] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 15] = Vertex(
+				Vec3(randomPos.x - randomSize / 2.f, randomPos.y - randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 16] = Vertex(
+				Vec3(randomPos.x - randomSize, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 17] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 18] = Vertex(
+				Vec3(randomPos.x - randomSize, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 19] = Vertex(
+				Vec3(randomPos.x - randomSize / 2.f, randomPos.y + randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 20] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+
+			starsMesh[i + 21] = Vertex(
+				Vec3(randomPos.x - randomSize / 2.f, randomPos.y + randomSize / 2.f, 0.f),
+				Rgba8(0, 0, 0, 0),
+				Vec2(0, 0)
+			);
+			starsMesh[i + 22] = Vertex(
+				Vec3(randomPos.x, randomPos.y + randomSize, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+			starsMesh[i + 23] = Vertex(
+				Vec3(randomPos.x, randomPos.y, 0.f),
+				randomColor,
+				Vec2(0, 0)
+			);
+		}
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::RenderStars() const {
+	if (m_curGameState == GAME_ATTRACT_MODE) {
+		g_engine->m_renderer->DrawVertexArray(MAX_ATTRACTMODE_STAR * 24, m_attractModeStarsMesh);
+	}
+	else if (m_curGameState == GAME_PLAYING_MODE) {
+		TransformVertexArrayXY3D(MAX_FAR_STAR * 24, m_farStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.05f * m_deltaSeconds);
+		g_engine->m_renderer->DrawVertexArray(MAX_FAR_STAR * 24, m_farStarsMesh);
+
+		TransformVertexArrayXY3D(MAX_NEAR_STAR * 24, m_nearStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.1f * m_deltaSeconds);
+		g_engine->m_renderer->DrawVertexArray(MAX_NEAR_STAR * 24, m_nearStarsMesh);
+	}
+	else {
+		g_engine->m_renderer->DrawVertexArray(MAX_FAR_STAR * 24, m_farStarsMesh);
+		g_engine->m_renderer->DrawVertexArray(MAX_NEAR_STAR * 24, m_nearStarsMesh);
+	}
+}
+
+void Game::RenderWorldBoundary() const {
+	DebugDrawAABB(Vec2(-50, -50), Vec2(WORLD_SIZE_X+50.f, WORLD_SIZE_Y+50.f), Rgba8(255, 0, 255, 32), Rgba8(255, 0, 255, 32), Rgba8(0, 0, 0, 0));
+	DebugDrawAABB(Vec2(-50, -50), Vec2(WORLD_SIZE_X+50.f, WORLD_SIZE_Y+50.f), Rgba8(100, 0, 255, 16), Rgba8(100, 0, 255, 16), Rgba8(0, 0, 0, 0));
+}
+
+//--------------------------------------------------------------------------------------------------
 void Game::UpdateAllAttractModeBoids(float deltaSeconds) {
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
-		if(m_attractModeBoids[i].isActive)
+		if (m_attractModeBoids[i].isActive) {
 			UpdateOneAttractModeBoid(&m_attractModeBoids[i], deltaSeconds);
+		}
 	}
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
 		if (m_attractModeBoids[i].isActive) {
@@ -658,56 +1212,71 @@ void Game::UpdateAllAttractModeBoids(float deltaSeconds) {
 
 //--------------------------------------------------------------------------------------------------
 void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSeconds) {
-	int neighborCount = 0;
+	boid->neighborCount = 0;
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
 		if (&m_attractModeBoids[i] != boid && m_attractModeBoids[i].isActive) {
 			float distance = GetDistance2D(boid->worldPos, m_attractModeBoids[i].worldPos);
 			if (distance < boid->nearbyRadius) {
-				m_boidsNeighbors[neighborCount] = &m_attractModeBoids[i];
-				neighborCount++;
+				m_boidsNeighbors[boid->neighborCount] = m_attractModeBoids[i];
+				if (boid->boidsType == 0) {
+					m_boidPlayerNeighbors[boid->neighborCount] = m_attractModeBoids[i];
+				}
+				boid->neighborCount++;
 			}
 		}
 	}
-
 
 	Vec2 separation(0.f, 0.f);
 	Vec2 alignment(0.f, 0.f);
 	Vec2 cohesion(0.f, 0.f);
 
-	if (neighborCount > 0) {
+	if (boid->neighborCount > 0) {
 		// Separation
-		for (int i = 0; i < neighborCount; i++) {
-			Vec2 away = boid->worldPos - m_boidsNeighbors[i]->worldPos;
+		for (int i = 0; i < boid->neighborCount; i++) {
+			Vec2 away = boid->worldPos - m_boidsNeighbors[i].worldPos;
 			float sqrDistance = away.GetLengthSquared();
 			if (sqrDistance < boid->bounderyRadius * boid->bounderyRadius) {
 				separation += away / sqrDistance;
 			}
 		}
-		separation *= m_boidsSeprationWeight;
+		if (boid->boidsType !=0) {
+			separation *= m_boidsSeprationWeight;
+		}
+		else {
+			separation *= m_boidPlayerSeprationWeight;
+		}
 
 		// Alignment
-		for (int i = 0; i < neighborCount; i++) {
-			alignment += m_boidsNeighbors[i]->velocity;
+		for (int i = 0; i < boid->neighborCount; i++) {
+			alignment += m_boidsNeighbors[i].velocity;
 		}
-		alignment /= (float)neighborCount;
+		alignment /= (float)boid->neighborCount;
 		alignment *= m_boidsAlignmentWeight;
 
 		// Cohesion
-		for (int i = 0; i < neighborCount; i++) {
-			cohesion += m_boidsNeighbors[i]->worldPos;
+		for (int i = 0; i < boid->neighborCount; i++) {
+			cohesion += m_boidsNeighbors[i].worldPos;
 		}
-		cohesion /= (float)neighborCount;
+		cohesion /= (float)boid->neighborCount;
 		cohesion = (cohesion - boid->worldPos) * m_boidsCohesionWeight;
 	}
 	else {
 		Vec2 screenCenter(SCREEN_CENTER_X, SCREEN_CENTER_Y);
 		Vec2 toCenter = screenCenter - boid->worldPos;
 		toCenter.Normalize();
+		Vec2 centerForce = toCenter * m_boidCenterPullWeight; 
 
-		Vec2 centerForce = toCenter * m_centerPullWeight; 
+		Vec2 toPlayer = m_attractModeBoids[0].worldPos - boid->worldPos;
+		toPlayer.Normalize();
+		Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
 
-		boid->nextVelocity = boid->velocity + centerForce * deltaSeconds;
-		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidsMaxSpeed);
+		if (boid->boidsType == 0) {
+			boid->nextVelocity = boid->velocity + centerForce * deltaSeconds;
+		}
+		else {
+			boid->nextVelocity = boid->velocity + playerForce * deltaSeconds;
+		}
+		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidBeetleMaxSpeed);
 
 		boid->nextPosition = boid->worldPos + boid->nextVelocity * deltaSeconds;
 		boid->nextPosition.x = GetClamped(boid->nextPosition.x, 0.f, SCREEN_SIZE_X);
@@ -716,31 +1285,46 @@ void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSec
 	}
 
 
-	Vec2 boundaryForce(0.f, 0.f);
-
-	if (boid->worldPos.x < m_boundaryMargin) {
-		boundaryForce.x += (m_boundaryMargin - boid->worldPos.x);
+	if (boid->worldPos.x <= 0) {
+		boid->worldPos.x = SCREEN_SIZE_X;
 	}
-	else if (boid->worldPos.x > SCREEN_SIZE_X - m_boundaryMargin) {
-		boundaryForce.x -= (boid->worldPos.x - (SCREEN_SIZE_X - m_boundaryMargin));
+	else if (boid->worldPos.x >= SCREEN_SIZE_X) {
+		boid->worldPos.x = 0;
 	}
-	if (boid->worldPos.y < m_boundaryMargin) {
-		boundaryForce.y += (m_boundaryMargin - boid->worldPos.y);
+	if (boid->worldPos.y <= 0) {
+		boid->worldPos.y = SCREEN_SIZE_Y;
 	}
-	else if (boid->worldPos.y > SCREEN_SIZE_Y - m_boundaryMargin) {
-		boundaryForce.y -= (boid->worldPos.y - (SCREEN_SIZE_Y - m_boundaryMargin));
+	else if (boid->worldPos.y >= SCREEN_SIZE_Y) {
+		boid->worldPos.y = 0;
 	}
-	boundaryForce *= m_boundaryWeight;
 
 	Vec2 screenCenter(SCREEN_CENTER_X, SCREEN_CENTER_Y);
 	Vec2 toCenter = screenCenter - boid->worldPos;
 	toCenter.Normalize();
-	Vec2 centerForce = toCenter * m_centerPullWeight;
+	Vec2 centerForce = toCenter * m_boidCenterPullWeight;
 
-	boid->nextVelocity = boid->velocity
-		+ (separation + alignment + cohesion + boundaryForce + centerForce) * deltaSeconds;
+	Vec2 toPlayer = m_attractModeBoids[0].worldPos - boid->worldPos;
+	toPlayer.Normalize();
+	Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
 
-	boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidsMaxSpeed);
+	if (boid->boidsType == 1) {
+		boid->nextVelocity = boid->velocity
+			+ (separation + alignment + cohesion + playerForce + centerForce) * deltaSeconds;
+
+		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidBeetleMaxSpeed);
+	}
+	else if (boid->boidsType == 2) {
+		boid->nextVelocity = boid->velocity
+			+ (separation + alignment + cohesion + playerForce*2 + centerForce) * deltaSeconds;
+
+		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidWaspMaxSpeed);
+	}
+	else {
+		boid->nextVelocity = boid->velocity
+			+ (separation + centerForce) * deltaSeconds;
+
+		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidPlayerMaxSpeed);
+	}
 	boid->nextPosition = boid->worldPos + boid->nextVelocity * deltaSeconds;
 
 	boid->nextPosition.x = GetClamped(boid->nextPosition.x, 0.f, SCREEN_SIZE_X);

@@ -30,6 +30,9 @@ public:
 	bool m_isDebugDraw = false;
 	bool m_isPlayerRespawn = false;
 	bool m_isAsteroidRespawn = false;
+	size_t m_attractSoundPlaybackID;
+	size_t m_gameSoundPlaybackID;
+	size_t m_accelerateSoundPlaybackID;
 
 private:
 	void HandlePlayerInput();

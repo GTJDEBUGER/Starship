@@ -195,6 +195,7 @@
     <ClCompile Include="GameCommon.cpp" />
     <ClCompile Include="Main_Windows.cpp" />
     <ClCompile Include="PlayerShip.cpp" />
+    <ClCompile Include="ShockWave.cpp" />
     <ClCompile Include="WaspEnemy.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -208,6 +209,7 @@
     <ClInclude Include="Game.hpp" />
     <ClInclude Include="GameCommon.hpp" />
     <ClInclude Include="PlayerShip.hpp" />
+    <ClInclude Include="ShockWave.hpp" />
     <ClInclude Include="WaspEnemy.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -9,6 +9,10 @@
 #include "Game/Game.hpp"
 #include "Game/Asteroid.hpp"
 #include "Game/Debris.hpp"
+#include "Game/ShockWave.hpp"
+#include "Game/PlayerShip.hpp"
+#include "Game/BeetleEnemy.hpp"
+#include "Game/WaspEnemy.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
@@ -19,6 +23,8 @@ Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
 	m_physicsRadius = BULLET_PHYSICS_RADIUS;
 	m_cosmeticRadius = BULLET_COSMETIC_RADIUS;
 	m_lifeTime = BULLET_LIFETIME_SECONDS;
+	m_health = 1;
+	m_trackTime = m_game->m_player->m_bulletTrackDuration;
 
 	m_localMesh = new Vertex[m_vertexNum];
 	GetLocalMesh(m_vertexNum, m_localMesh);
@@ -28,12 +34,20 @@ Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
 void Bullet::Update(float deltaSeconds)
 {
 	m_lifeTime -= deltaSeconds;
-	if(m_lifeTime <= 0.f || IsOffScreen()) {
+	m_trackTime -= deltaSeconds;
+	if (m_trackTime < 0.f) {
+		m_trackTime = 0.f;
+	}
+
+	if(m_lifeTime <= 0.f || IsOffScreen() || m_health<=0) {
 		Die();
 		return;
 	}
-
+	if (m_trackTime > 0.f) {
+		TrackNearestEnemy(deltaSeconds);
+	}
 	m_position += m_velocity * deltaSeconds;
+	CollideTest();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -45,6 +59,12 @@ void Bullet::Render() const
 		m_worldMesh[i] = m_localMesh[i];
 	}
 	TransformVertexArrayXY3D(6, m_worldMesh, 1.f, m_orientationDegrees, m_position);
+	if (m_trackTime > 0.f) {
+		Rgba8 curTargetColor = Rgba8(0, 255, 0, (unsigned char)(128.f * (m_trackTime / m_game->m_player->m_bulletTrackDuration)));
+		DebugDrawRing(m_nearestPos, 5.f, curTargetColor, 0.7f);
+		DebugDrawLine(m_nearestPos + Vec2(-7.5, -7.5), m_nearestPos + Vec2(7.5, 7.5), curTargetColor, 0.7f);
+		DebugDrawLine(m_nearestPos + Vec2(-7.5, 7.5), m_nearestPos + Vec2(7.5, -7.5), curTargetColor, 0.7f);
+	}
 	g_engine->m_renderer->DrawVertexArray(6, m_worldMesh);
 }
 
@@ -54,10 +74,112 @@ void Bullet::Die()
 	if (!m_isDead) {
 		if (m_lifeTime > 0.f && !IsOffScreen()) {
 			BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 30.f, Rgba8(255, 255, 0, 255), 0.2f);
+			BurstShockWave(m_position, 0.2f, m_game->m_player->m_bulletExplosionRange, Rgba8(255, 200, 128, 255));
+			BurstShockWave(m_position, 0.3f, m_game->m_player->m_bulletExplosionRange * 2.f / 3.f, Rgba8(255, 200, 128, 255));
+
+			if (m_game->m_player->m_bulletExplosionRange > m_physicsRadius) {
+				ShockWaveAttack();
+				SoundID shockWaveSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ShockWaveSpawn.mp3");
+				g_engine->m_audio->StartSound(shockWaveSound, false, 2.0f, 0.f, 1.f);
+			}
+
 			SoundID hitSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyGetHurt.wav");
 			g_engine->m_audio->StartSound(hitSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.5f,1.1f));
 		}
 		m_isDead = true;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Bullet::ShockWaveAttack() {
+	for (int i = 0; i < MAX_BEETLES; i++) {
+		if (m_game->m_beetleEnemy[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_game->m_player->m_bulletExplosionRange,
+				m_game->m_beetleEnemy[i]->m_position, m_game->m_beetleEnemy[i]->m_physicsRadius)) {
+				m_game->m_beetleEnemy[i]->m_health--;
+				m_game->m_beetleEnemy[i]->m_flashFraction = 1.f;
+				m_game->m_beetleEnemy[i]->m_finalHitDir = (m_game->m_beetleEnemy[i]->m_position - m_position);
+			}
+		}
+	}
+	for (int i = 0; i < MAX_WASPS; i++) {
+		if (m_game->m_waspEnemy[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_game->m_player->m_bulletExplosionRange,
+				m_game->m_waspEnemy[i]->m_position, m_game->m_waspEnemy[i]->m_physicsRadius)) {
+				m_game->m_waspEnemy[i]->m_health--;
+				m_game->m_waspEnemy[i]->m_flashFraction = 1.f;
+				m_game->m_waspEnemy[i]->m_finalHitDir = (m_game->m_waspEnemy[i]->m_position - m_position);
+			}
+		}
+	}
+	for (int i = 0; i < MAX_ASTEROIDS; i++) {
+		if (m_game->m_asteroids[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_game->m_player->m_bulletExplosionRange,
+				m_game->m_asteroids[i]->m_position, m_game->m_asteroids[i]->m_physicsRadius)) {
+				m_game->m_asteroids[i]->m_health--;
+				m_game->m_asteroids[i]->m_flashFraction = 1.f;
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Bullet::CollideTest() {
+	for (int i = 0; i < MAX_BEETLES; i++) {
+		if (m_game->m_beetleEnemy[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_physicsRadius,
+				m_game->m_beetleEnemy[i]->m_position, m_game->m_beetleEnemy[i]->m_physicsRadius)) {
+				m_game->m_beetleEnemy[i]->m_health--;
+				m_game->m_beetleEnemy[i]->m_flashFraction = 1.f;
+				m_game->m_beetleEnemy[i]->m_finalHitDir = (m_game->m_beetleEnemy[i]->m_position - m_position);
+				m_health--;
+			}
+		}
+	}
+	for (int i = 0; i < MAX_WASPS; i++) {
+		if (m_game->m_waspEnemy[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_physicsRadius,
+				m_game->m_waspEnemy[i]->m_position, m_game->m_waspEnemy[i]->m_physicsRadius)) {
+				m_game->m_waspEnemy[i]->m_health--;
+				m_game->m_waspEnemy[i]->m_flashFraction = 1.f;
+				m_game->m_waspEnemy[i]->m_finalHitDir = (m_game->m_waspEnemy[i]->m_position - m_position);
+				m_health--;
+			}
+		}
+	}
+	for (int i = 0; i < MAX_ASTEROIDS; i++) {
+		if (m_game->m_asteroids[i] != nullptr) {
+			if (DoDiscsOverlap(m_position, m_physicsRadius,
+				m_game->m_asteroids[i]->m_position, m_game->m_asteroids[i]->m_physicsRadius)) {
+				m_game->m_asteroids[i]->m_health--;
+				m_game->m_asteroids[i]->m_flashFraction = 1.f;
+				m_health--;
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Bullet::TrackNearestEnemy(float deltaSeconds) {
+	Vec2 nearestDir = Vec2(WORLD_SIZE_X, WORLD_SIZE_Y);
+	for (int i = 0; i < MAX_BEETLES; i++) {
+		if (m_game->m_beetleEnemy[i] != nullptr) {
+			if ((m_game->m_beetleEnemy[i]->m_position - m_position).GetLengthSquared() < nearestDir.GetLengthSquared()) {
+				nearestDir = m_game->m_beetleEnemy[i]->m_position - m_position;
+				m_nearestPos = m_game->m_beetleEnemy[i]->m_position;
+			}
+		}
+	}
+	for (int i = 0; i < MAX_WASPS; i++) {
+		if (m_game->m_waspEnemy[i] != nullptr) {
+			if ((m_game->m_waspEnemy[i]->m_position - m_position).GetLengthSquared() < nearestDir.GetLengthSquared()) {
+				nearestDir = m_game->m_waspEnemy[i]->m_position - m_position;
+				m_nearestPos = m_game->m_waspEnemy[i]->m_position;
+			}
+		}
+	}
+	if (nearestDir != Vec2(WORLD_SIZE_X, WORLD_SIZE_Y)) {
+		m_velocity += nearestDir.GetNormalized() * m_trackForce * deltaSeconds;
 	}
 }
 
@@ -94,6 +216,22 @@ void Bullet::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burs
 				burstDirection.GetRotatedByDegrees(randomAngle),
 				randomSpeed, color, scale);
 		}
+	}
+
+}
+
+//----------------------------------------------------------------------------------------------
+void Bullet::BurstShockWave(Vec2 position, float duration, float spreadDistance, Rgba8 waveColor) {
+
+	int freeShockWaveIndex = -1;
+	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
+		if (m_game->m_shockWaves[i] == nullptr) {
+			freeShockWaveIndex = i;
+			break;
+		}
+	}
+	if (freeShockWaveIndex > -1) {
+		m_game->m_shockWaves[freeShockWaveIndex] = new ShockWave(m_game, position, duration, spreadDistance, waveColor);
 	}
 
 }
