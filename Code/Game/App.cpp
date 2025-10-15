@@ -32,6 +32,8 @@ App::App()
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShockWaveSpawn.mp3");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ChooseUpgrade.mp3");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ConfirmUpgrade.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/GameWin.mp3");
+	g_engine->m_audio->CreateOrGetSound("Data/Audio/GameLose.mp3");
 
 	SoundID attractSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/AttractModeBGM.mp3");
 	m_attractSoundPlaybackID = g_engine->m_audio->StartSound(attractSound, true, 1.0f, 0.f, 0.f);

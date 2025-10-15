@@ -201,7 +201,7 @@ void BeetleEnemy::GetLocalMesh(int vertexNum, Vertex* mesh) {
 
 //-----------------------------------------------------------------------------------------------
 void BeetleEnemy::CollideTest() {
-	if (!m_game->m_player->m_isDead) {
+	if (!m_game->m_player->m_isDead && m_game->m_player->m_invincibleTimer==0) {
 		if (DoDiscsOverlap(m_position, m_physicsRadius,
 			m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
 			float playerVelocity = m_game->m_player->m_velocity.GetLength();

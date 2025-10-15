@@ -39,11 +39,20 @@ void PlayerShip::Update(float deltaSeconds)
 	}
 
 	//--------------------------------------------------------------------------------
-	BounceCheck();
+	if (m_shieldBarVal > m_shieldBarMax * 0.5f && m_shieldBarMax > 0) {
+		if (BoundaryTeleport()) {
+			BurstShockWave(m_position, 0.2f, 20.f, Rgba8(255, 0, 200, 255));
+			BurstShockWave(m_position, 0.4f, 10.f, Rgba8(200, 0, 145, 255));
+		}
+	}
+	else {
+		BounceCheck();
+	}
 	//--------------------------------------------------------------------------------
 	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
 	m_fireTimer = GetClamped(m_fireTimer + deltaSeconds, 0.f, m_fireInterval);
 	m_runTimer += deltaSeconds;
+	m_invincibleTimer = GetClamped(m_invincibleTimer - deltaSeconds, 0.f, m_invincibleDuration);
 	if (m_shieldBarMax > 0) {
 		m_shieldBarVal = GetClamped(m_shieldBarVal + m_shieldRecoverSpeed * deltaSeconds, 0.f, m_shieldBarMax);
 	}
@@ -71,10 +80,16 @@ void PlayerShip::Render() const
 	for (int i = 0; i < m_vertexNum; i++)
 	{
 		m_worldMesh[i] = m_localMesh[i];
-		if (m_shieldBarVal <= 0) {
+		if (m_shieldBarVal <= 0 && m_invincibleTimer == 0) {
 			m_worldMesh[i].m_color = Rgba8((unsigned char)Interpolate(m_worldMesh[i].m_color.r, 255.f, m_flashFraction),
 											(unsigned char)Interpolate(m_worldMesh[i].m_color.g, 255.f, m_flashFraction),
 											(unsigned char)Interpolate(m_worldMesh[i].m_color.b, 255.f, m_flashFraction),
+											m_worldMesh[i].m_color.a);
+		}
+		else if (m_invincibleTimer > 0) {
+			m_worldMesh[i].m_color = Rgba8((unsigned char)Interpolate(m_worldMesh[i].m_color.r, 255.f, abs(SinDegrees(m_invincibleTimer*m_invincibleFlashSpeed))),
+											(unsigned char)Interpolate(m_worldMesh[i].m_color.g, 255.f, abs(SinDegrees(m_invincibleTimer *m_invincibleFlashSpeed))),
+											(unsigned char)Interpolate(m_worldMesh[i].m_color.b, 255.f, abs(SinDegrees(m_invincibleTimer *m_invincibleFlashSpeed))),
 											m_worldMesh[i].m_color.a);
 		}
 	}
@@ -112,7 +127,9 @@ void PlayerShip::Die()
 		m_velocity = Vec2(0,0);
 
 		if (m_health <= 0 && !m_isDead) {
-			m_game->DelayQuit(2.f);
+			SoundID quitSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/GameLose.mp3");
+			g_engine->m_audio->StartSound(quitSound, false, 1.1f, 0.f, 2.f);
+			m_game->DelayQuit(8.f);
 		}
 
 		m_game->AddCameraShake(m_dieScreenShakeAmp);
@@ -154,7 +171,7 @@ void PlayerShip::GetLocalMesh(int vertexNum, Vertex* mesh) {
 
 //-----------------------------------------------------------------------------------------------
 void PlayerShip::LoseHealth(float damage) {
-	if (m_isDead) {
+	if (m_isDead || m_invincibleTimer>0.f) {
 		return;
 	}
 
@@ -195,7 +212,7 @@ void PlayerShip::GainExp(float expAmount) {
 		m_upgradeTimes = RoundDownToInt(m_expBarVal / m_nextLevelExpVal);
 		m_expBarVal -= (float)m_upgradeTimes * m_nextLevelExpVal;
 		m_curLevel += m_upgradeTimes;
-		m_nextLevelExpVal = (float)m_curLevel * 5.f;
+		m_nextLevelExpVal = (float)m_curLevel * 10.f;
 
 		SoundID levelUpSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/PlayerLevelUp.mp3");
 		g_engine->m_audio->StartSound(levelUpSound, false, 1.5f, 0.f, 1.f);

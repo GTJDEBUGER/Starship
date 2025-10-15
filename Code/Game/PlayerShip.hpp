@@ -37,7 +37,7 @@ public:
 	float m_healthBarMax = 100.f;
 	float m_shieldBarVal = 0.f;
 	float m_shieldBarMax = 0.f;
-	float m_shieldRecoverSpeed = 0.f;
+	float m_shieldRecoverSpeed = 1.f;
 	float m_shieldExplosionRange = 0.f;
 	float m_fireInterval = 0.5f;
 	float m_fireBranch = 1.f;
@@ -46,6 +46,9 @@ public:
 
 	float m_fireAngle = 90.f;
 	float m_randomFireAngle = 5.f;
+
+	float m_invincibleDuration = 5.f;
+	float m_invincibleTimer = m_invincibleDuration;
 private:
 	void BounceCheck();
 	void BurstDebris(int numMin, int numMax, Vec2 burstDirection,
@@ -63,4 +66,5 @@ private:
 	float m_bounceShakeAmp = 1.f;
 
 	float m_flashFractionDecay = 2.f;
+	float m_invincibleFlashSpeed = 720.f;
 };

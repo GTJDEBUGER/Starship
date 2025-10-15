@@ -253,6 +253,7 @@ private:
 	float m_playSoundSpeed = 1.f;
 	float m_playSoundSwitchSpeed = 2.f;
 
+	bool m_noEnemy = true;
 	float m_waitedTime = 0;
 	float m_delayTime = 1.f;
 	bool m_quitFlag = false;

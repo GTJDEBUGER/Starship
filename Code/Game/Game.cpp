@@ -128,6 +128,8 @@ void Game::Update(float deltaSeconds)
 			if (m_waitedTime > m_delayTime) {
 				m_nextGameState = GAME_ATTRACT_MODE;
 			}
+
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 1.f - m_waitedTime / m_delayTime);
 		}
 		//-----------------------------------------------------------------------------------------------
 		if (m_player != nullptr && !m_player->m_isDead) {
@@ -208,6 +210,14 @@ void Game::Render() const
 		g_engine->m_renderer->BeginCamera(*m_screenCamera);
 
 		RenderUI();
+
+
+		if (m_quitFlag) {
+			DebugDrawAABB(Vec2(0, 0), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y),
+				Rgba8(0, 0, 0, (unsigned char)(255.f * (m_waitedTime / m_delayTime))),
+				Rgba8(0, 0, 0, (unsigned char)(255.f * (m_waitedTime / m_delayTime))),
+				Rgba8(0, 0, 0, (unsigned char)(255.f * (m_waitedTime / m_delayTime))));
+		}
 
 		g_engine->m_renderer->EndCamera(*m_screenCamera);
 	}
@@ -434,7 +444,8 @@ void Game::HandleRespawnPlayerInput() {
 				m_player->m_isDead = false;
 				m_player->m_health--;
 				m_player->m_healthBarVal = m_player->m_healthBarMax;
-
+				m_player->m_shieldBarVal = m_player->m_shieldBarMax;
+				m_player->m_invincibleTimer = m_player->m_invincibleDuration;
 				SoundID respawnSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Respawn.wav");
 				g_engine->m_audio->StartSound(respawnSound, false, 1.0f, 0.f, 1.f);
 			}
@@ -611,28 +622,28 @@ void Game::SetUpLevel(int levelIndex) {
 
 //--------------------------------------------------------------------------------------------------
 void Game::CheckGotoNextLevel() {
-	bool flag = true;
+	m_noEnemy = true;
 	for (int i = 0; i < MAX_BEETLES; i++) {
-		if (m_beetleEnemy[i] != nullptr || !flag) {
-			flag = false;
+		if (m_beetleEnemy[i] != nullptr || !m_noEnemy) {
+			m_noEnemy = false;
 			break;
 		}
 	}
 	for (int i = 0; i < MAX_WASPS; i++) {
-		if (m_waspEnemy[i] != nullptr || !flag) {
-			flag = false;
+		if (m_waspEnemy[i] != nullptr || !m_noEnemy) {
+			m_noEnemy = false;
 			break;
 		}
 	}
 
-	if (flag) {
+	if (m_noEnemy) {
 		m_curLevelIndex++;
 		m_waveAnimationTimeCount = 0;
 		if (m_curLevelIndex < sizeof(levels) / sizeof(GameLevel)) {
 			SetUpLevel(m_curLevelIndex);
 		}
 		else {
-			DelayQuit(2.f);
+			DelayQuit(9.f);
 		}
 	}
 }
@@ -669,6 +680,7 @@ void Game::RenderUIHealthBar() const {
 	}
 }
 
+//--------------------------------------------------------------------------------------------------
 void Game::RenderUIShieldBar() const {
 	DebugDrawAABB(Vec2(12.5f, SCREEN_SIZE_Y - 7.5f - 50.f), Vec2(7.5f + 400.f, SCREEN_SIZE_Y - 37.5f),
 		Rgba8(180, 180, 180, 255), Rgba8(224, 224, 224, 255), Rgba8(224, 224, 224, 255));
@@ -823,8 +835,17 @@ void Game::RenderUIUpgrade() const {
 	AddVertsForTextTriangles2D(textVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 450.f, SCREEN_SIZE_Y - 72.5f), 50.5f, Rgba8(0, 128, 0, 255));
 	AddVertsForTextTriangles2D(textVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 445.f, SCREEN_SIZE_Y - 70.f), 50.f, Rgba8(0, 200, 0, 255));
 
-	AddVertsForTextTriangles2D(textVertex, "KEYBOARD: CHOOSE LEFT(S) CHOOSE RIGHT(F) CONFIRM(ENTER)", Vec2(15.f, 35.f), 10.f, Rgba8(0, 128, 0, 255));
-	AddVertsForTextTriangles2D(textVertex, "CONTROLLER: CHOOSE LEFT(DEPAD-L) CHOOSE RIGHT(DEPAD-R) CONFIRM(X)", Vec2(15.f, 20.f), 10.f, Rgba8(0, 128, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("SHIP MAX HEALTH: %f", m_player->m_healthBarMax), Vec2(15.f, SCREEN_SIZE_Y - 100.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("SHIP MAX SHIELD: %f", m_player->m_shieldBarMax), Vec2(15.f, SCREEN_SIZE_Y - 115.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("SHIELD RECOVER SPEED: %f grid/s", m_player->m_shieldRecoverSpeed), Vec2(15.f, SCREEN_SIZE_Y - 130.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("SHIELD EXPLOSION RANGE: %f m", m_player->m_shieldExplosionRange), Vec2(15.f, SCREEN_SIZE_Y - 145.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("FIRE INTERVAL: %f s", m_player->m_fireInterval), Vec2(15.f, SCREEN_SIZE_Y - 160.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("FIRE BRANCH: %f", m_player->m_fireBranch), Vec2(15.f, SCREEN_SIZE_Y - 175.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("BULLET EXPLOSION RANGE: %f m", m_player->m_bulletExplosionRange), Vec2(15.f, SCREEN_SIZE_Y - 190.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, Stringf("BULLET TRACK DURATION: %f s", m_player->m_bulletTrackDuration), Vec2(15.f, SCREEN_SIZE_Y - 205.f), 10.f, Rgba8(0, 200, 0, 255));
+
+	AddVertsForTextTriangles2D(textVertex, "KEYBOARD: SELECT LEFT(S) SELECT RIGHT(F) CONFIRM(ENTER)", Vec2(15.f, 40.f), 10.f, Rgba8(0, 200, 0, 255));
+	AddVertsForTextTriangles2D(textVertex, "CONTROLLER: SELECT LEFT(DEPAD-L) SELECT RIGHT(DEPAD-R) CONFIRM(X)", Vec2(15.f, 25.f), 10.f, Rgba8(0, 200, 0, 255));
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 
 	std::vector<Vertex> shineTextVertex;
@@ -873,6 +894,12 @@ void Game::RenderUIUpgradeItem(Vec2 center, PlayerUpgradeItem content, int index
 //--------------------------------------------------------------------------------------------------
 void Game::DelayQuit(float delayTime) {
 	if (!m_quitFlag) {
+		if (m_noEnemy) {
+			SoundID quitSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/GameWin.mp3");
+			g_engine->m_audio->StartSound(quitSound, false, 2.f, 0.f, 1.f);
+		}
+
+		m_waitedTime = 0.f;
 		m_delayTime = delayTime;
 		m_quitFlag = true;
 	}
@@ -1026,8 +1053,7 @@ void Game::RenderAttractMode() const {
 }
 
 //--------------------------------------------------------------------------------------------------
-void Game::GenerateStarsMesh(int starCount, Vertex* starsMesh, 
-		Vec2 buttomLeft, Vec2 topRight, float starSizeMin, float starSizeMax, Rgba8 starColor1, Rgba8 starColor2) {
+void Game::GenerateStarsMesh(int starCount, Vertex* starsMesh, Vec2 buttomLeft, Vec2 topRight, float starSizeMin, float starSizeMax, Rgba8 starColor1, Rgba8 starColor2) {
 	for (int i = 0; i < starCount * 24; i += 24) {
 		Vec2 randomPos = Vec2(m_randomGenerator->RollRandomFloatInRange(buttomLeft.x, topRight.x),
 							  m_randomGenerator->RollRandomFloatInRange(buttomLeft.x, topRight.x));
@@ -1178,10 +1204,10 @@ void Game::RenderStars() const {
 		g_engine->m_renderer->DrawVertexArray(MAX_ATTRACTMODE_STAR * 24, m_attractModeStarsMesh);
 	}
 	else if (m_curGameState == GAME_PLAYING_MODE) {
-		TransformVertexArrayXY3D(MAX_FAR_STAR * 24, m_farStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.05f * m_deltaSeconds);
+		TransformVertexArrayXY3D(MAX_FAR_STAR * 24, m_farStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.0125f * m_deltaSeconds);
 		g_engine->m_renderer->DrawVertexArray(MAX_FAR_STAR * 24, m_farStarsMesh);
 
-		TransformVertexArrayXY3D(MAX_NEAR_STAR * 24, m_nearStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.1f * m_deltaSeconds);
+		TransformVertexArrayXY3D(MAX_NEAR_STAR * 24, m_nearStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.025f * m_deltaSeconds);
 		g_engine->m_renderer->DrawVertexArray(MAX_NEAR_STAR * 24, m_nearStarsMesh);
 	}
 	else {

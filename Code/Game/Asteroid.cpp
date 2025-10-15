@@ -23,7 +23,7 @@ Asteroid::Asteroid(Game* game)
 	m_physicsRadius = ASTEROID_PHYSICS_RADIUS * m_randomScale;
 	m_cosmeticRadius = ASTEROID_COSMETIC_RADIUS * m_randomScale;
 	m_angularVelocity = m_randomGenerator.RollRandomFloatInRange(-200.f,200.f);
-	m_health = 3;
+	m_health = (int)(3.f * m_randomScale);
 	//SetPositionRandomOffWorld();
 	SetPositionRandomOffScreen(m_game->m_player->m_position);
 	m_localMesh = new Vertex[m_vertexNum];
@@ -122,7 +122,7 @@ void Asteroid::Die()
 
 //-----------------------------------------------------------------------------------------------
 void Asteroid::CollideTest() {
-	if (!m_game->m_player->m_isDead) {
+	if (!m_game->m_player->m_isDead && m_game->m_player->m_invincibleTimer == 0) {
 		if (DoDiscsOverlap(m_position, m_physicsRadius,
 			m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
 			float playerVelocity = m_game->m_player->m_velocity.GetLength();
