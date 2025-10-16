@@ -1,9 +1,3 @@
-#include "Engine/Math/MathUtils.hpp"
-#include "Engine/Core/Engine.hpp"
-#include "Engine/Renderer/Renderer.hpp"
-#include "Engine/Core/ErrorWarningAssert.hpp"
-#include "Engine/Audio/AudioSystem.hpp"
-
 #include "Game/Asteroid.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Game.hpp"
@@ -12,24 +6,30 @@
 #include "Game/Debris.hpp"
 #include "Game/ShockWave.hpp"
 
+#include "Engine/Math/MathUtils.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
+#include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
+
 //-----------------------------------------------------------------------------------------------
 Asteroid::Asteroid(Game* game)
 	: Entity(game, Vec2(0,0))
 {
-	m_randomGenerator = RandomNumberGenerator();
-	m_velocity = Vec2(m_randomGenerator.RollRandomFloatZeroToOne()*2.f-1.f, 
-					  m_randomGenerator.RollRandomFloatZeroToOne()*2.f-1.f).GetNormalized();
-	m_randomScale = m_randomGenerator.RollRandomFloatInRange(m_randomScaleMin, m_randomScaleMax);
+	m_velocity = Vec2(m_game->m_randomGenerator->RollRandomFloatZeroToOne()*2.f-1.f, 
+					  m_game->m_randomGenerator->RollRandomFloatZeroToOne()*2.f-1.f).GetNormalized();
+	m_randomScale = m_game->m_randomGenerator->RollRandomFloatInRange(m_randomScaleMin, m_randomScaleMax);
 	m_physicsRadius = ASTEROID_PHYSICS_RADIUS * m_randomScale;
 	m_cosmeticRadius = ASTEROID_COSMETIC_RADIUS * m_randomScale;
-	m_angularVelocity = m_randomGenerator.RollRandomFloatInRange(-200.f,200.f);
+	m_angularVelocity = m_game->m_randomGenerator->RollRandomFloatInRange(-200.f,200.f);
 	m_health = (int)(3.f * m_randomScale);
 	//SetPositionRandomOffWorld();
 	SetPositionRandomOffScreen(m_game->m_player->m_position);
 	m_localMesh = new Vertex[m_vertexNum];
 	float randomLengths[16];
 	for (int i = 0; i < 16; i++) {
-		randomLengths[i] = RandomNumberGenerator().RollRandomFloatInRange(ASTEROID_PHYSICS_RADIUS * m_randomScale,
+		randomLengths[i] = m_game->m_randomGenerator->RollRandomFloatInRange(ASTEROID_PHYSICS_RADIUS * m_randomScale,
 			ASTEROID_COSMETIC_RADIUS * m_randomScale);
 	}
 
@@ -78,8 +78,8 @@ void Asteroid::Update(float deltaSeconds)
 		return;
 	}
 	//--------------------------------------------------------------------------------
-	CollideTest();
-	BoundaryTeleport();
+	CheckCollide();
+	TeleportFromBoundary();
 	//--------------------------------------------------------------------------------
 	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
 
@@ -114,26 +114,24 @@ void Asteroid::Die()
 			Rgba8(100, 100, 100, 255), 1.1f * m_randomScale);
 		BurstShockWave(m_position, 0.2f, 20.f * m_randomScale, Rgba8(255, 255, 255, 255));
 		BurstShockWave(m_position, 0.4f, 10.f * m_randomScale, Rgba8(200, 200, 200, 255));
-		//SoundID dieSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/AsteroidBreak.mp3");
-		//g_engine->m_audio->StartSound(dieSound, false, 2.f, 0.f, m_randomGenerator.RollRandomFloatInRange(1.1f, 1.3f));
 		m_isDead = true;
 	}
 }
 
 //-----------------------------------------------------------------------------------------------
-void Asteroid::CollideTest() {
+void Asteroid::CheckCollide() {
 	if (!m_game->m_player->m_isDead && m_game->m_player->m_invincibleTimer == 0) {
 		if (DoDiscsOverlap(m_position, m_physicsRadius,
 			m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
 			float playerVelocity = m_game->m_player->m_velocity.GetLength();
-			m_game->m_player->LoseHealth(5.f);
+			m_game->m_player->GetDamage(5.f);
 			m_game->m_player->GetHit(m_position, m_physicsRadius);
 			m_game->m_player->m_flashFraction = 1.f;
 
 			m_game->AddCameraShake(m_bounceShakeAmp);
 			SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-			g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
-			if (playerVelocity > m_hitDieSpeed) {
+			g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
+			if (playerVelocity > m_killSpeed) {
 				Die();
 			}
 		}
@@ -142,7 +140,7 @@ void Asteroid::CollideTest() {
 
 //----------------------------------------------------------------------------------------------
 void Asteroid::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burstAngle, Rgba8 color, float scale) {
-	int debrisNum = m_randomGenerator.RollRandomIntInRange(numMin, numMax);
+	int debrisNum = m_game->m_randomGenerator->RollRandomIntInRange(numMin, numMax);
 	for (int i = 0; i < debrisNum; i++) {
 		int freeDebrisIndex = -1;
 		for (int j = 0; j < MAX_DEBRIS; j++) {
@@ -152,8 +150,8 @@ void Asteroid::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float bu
 			}
 		}
 		if (freeDebrisIndex > -1) {
-			float randomAngle = m_randomGenerator.RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
-			float randomSpeed = m_randomGenerator.RollRandomFloatInRange(m_velocity.GetLength() * 0.2f, m_velocity.GetLength());
+			float randomAngle = m_game->m_randomGenerator->RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
+			float randomSpeed = m_game->m_randomGenerator->RollRandomFloatInRange(m_velocity.GetLength() * 0.2f, m_velocity.GetLength());
 			m_game->m_debris[freeDebrisIndex] = new Debris(m_game, m_position, 
 														   burstDirection.GetRotatedByDegrees(randomAngle),
 														randomSpeed, color, scale);

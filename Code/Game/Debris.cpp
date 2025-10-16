@@ -1,13 +1,13 @@
+#include "Game/Debris.hpp"
+#include "Game/GameCommon.hpp"
+#include "Game/Game.hpp"
+#include "Game/PlayerShip.hpp"
+
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
-
-#include "Game/Debris.hpp"
-#include "Game/GameCommon.hpp"
-#include "Game/Game.hpp"
-#include "Game/PlayerShip.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Debris::Debris(Game* game, Vec2 burstPosition, Vec2 burstDirection, float burstSpeed, Rgba8 color, float meshScale)
@@ -32,7 +32,7 @@ void Debris::Update(float deltaSeconds)
 		Die();
 		return;
 	}
-	ColorDuringLifeTime();
+	SetColorDuringLifeTime();
 	m_position += m_velocity * deltaSeconds;
 }
 
@@ -102,7 +102,7 @@ void Debris::GetLocalMesh(int vertexNum, Vertex* mesh, Rgba8 color) {
 }
 
 //-------------------------------------------------------------------------------------------------
-void Debris::ColorDuringLifeTime() {
+void Debris::SetColorDuringLifeTime() {
 	for (int i = 0; i < MAX_DEBRIS_SUBDIVISION * 3; i++) {
 		m_localMesh[i].m_color.a = static_cast<unsigned char>(Interpolate(0.f, 255.f, m_lifeTimeCur / m_lifeTime));
 	}

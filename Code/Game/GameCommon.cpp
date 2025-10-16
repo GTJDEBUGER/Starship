@@ -1,3 +1,5 @@
+#include "Game/GameCommon.hpp"
+
 #include "Engine/Math/Vec2.hpp"
 #include "Engine/Core/Rgba8.hpp"
 #include "Engine/Math/MathUtils.hpp"
@@ -5,10 +7,8 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 
-#include "Game/GameCommon.hpp"
-
 //-----------------------------------------------------------------------------------------------
-void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thickness)
+void DrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thickness)
 {
 	Vec2 forwardDir = (endPosition - startPosition).GetNormalized();
 	Vec2 leftDir = forwardDir.GetRotatedBy90Degrees().GetNormalized();
@@ -30,7 +30,7 @@ void DebugDrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float 
 }
 
 //-----------------------------------------------------------------------------------------------
-void DebugDrawRing(Vec2 centre, float radius, Rgba8 ringColor, float thickness)
+void DrawRing(Vec2 centre, float radius, Rgba8 ringColor, float thickness)
 {
 	float angleIncrement = 360.f / (float) DEBUG_DRAWRING_SUBDIVISION; 
 	Vec2 vertexPos[DEBUG_DRAWRING_SUBDIVISION];
@@ -40,14 +40,14 @@ void DebugDrawRing(Vec2 centre, float radius, Rgba8 ringColor, float thickness)
 		float y = centre.y + radius * SinDegrees(angleDegrees);
 		vertexPos[i] = Vec2(x, y);
 		if (i > 0) {
-			DebugDrawLine(vertexPos[i], vertexPos[i - 1], ringColor, thickness);
+			DrawLine(vertexPos[i], vertexPos[i - 1], ringColor, thickness);
 		}
 	}
-	DebugDrawLine(vertexPos[0], vertexPos[DEBUG_DRAWRING_SUBDIVISION-1], ringColor, thickness);
+	DrawLine(vertexPos[0], vertexPos[DEBUG_DRAWRING_SUBDIVISION-1], ringColor, thickness);
 }
 
 //-----------------------------------------------------------------------------------------------
-void DebugDrawDisc(Vec2 centre, float radius, Rgba8 outerColor, Rgba8 innerColor) {
+void DrawDisc(Vec2 centre, float radius, Rgba8 outerColor, Rgba8 innerColor) {
 	Vertex tempMesh[DEBUG_DRAWRING_SUBDIVISION*3];
 	for (int i = 0; i < (DEBUG_DRAWRING_SUBDIVISION-1)*3; i += 3) {
 		tempMesh[i] = Vertex(
@@ -94,7 +94,7 @@ void DebugDrawDisc(Vec2 centre, float radius, Rgba8 outerColor, Rgba8 innerColor
 }
 
 //-----------------------------------------------------------------------------------------------
-void DebugDrawAABB(Vec2 buttomLeft, Vec2 topRight, Rgba8 leftColor, Rgba8 rightColor, Rgba8 centerColor) {
+void DrawAABB(Vec2 buttomLeft, Vec2 topRight, Rgba8 leftColor, Rgba8 rightColor, Rgba8 centerColor) {
 	Vertex tempMesh[12];
 	Vec3 centerV3 = ((buttomLeft + topRight) * 0.5f).GetVec3();
 	Vec3 buttomLeftV3 = buttomLeft.GetVec3();

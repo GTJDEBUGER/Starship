@@ -1,3 +1,10 @@
+#include "Game/App.hpp"
+#include "Game/Game.hpp"
+#include "Game/GameCommon.hpp"
+#include "Game/PlayerShip.hpp"
+#include "Game/BeetleEnemy.hpp"
+#include "Game/WaspEnemy.hpp"
+
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/Time.hpp"
 #include "Engine//Renderer/Camera.hpp"
@@ -5,12 +12,6 @@
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
-#include "Game/App.hpp"
-#include "Game/Game.hpp"
-#include "Game/GameCommon.hpp"
-#include "Game/PlayerShip.hpp"
-#include "Game/BeetleEnemy.hpp"
-#include "Game/WaspEnemy.hpp"
 
 App* g_app = nullptr;
 
@@ -85,8 +86,8 @@ void App::Update() {
 	if (m_isPause) {
 		deltaSeconds = 0.f;
 	}
-	if (m_singleStep) {
-		m_singleStep = false;
+	if (m_isRunSingleStep) {
+		m_isRunSingleStep = false;
 		deltaSeconds = originalDeltaSeconds;
 
 		m_isPause = true;
@@ -136,7 +137,7 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('O')) {
-		m_singleStep = true;
+		m_isRunSingleStep = true;
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_SPACE)) {
@@ -203,7 +204,7 @@ void App::HandlePlayerInput(){
 			m_game->m_player->m_rotationSpeed = -PLAYER_SHIP_TURN_SPEED;
 		}
 		else if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE && !g_engine->m_input->IsKeyDown('F')) {
-			m_game->GetNextUpgradeChoose();
+			m_game->UpdateToNextUpgradeChoose();
 		}
 	}
 
@@ -213,10 +214,13 @@ void App::HandlePlayerInput(){
 			m_game->m_player->m_rotationSpeed = PLAYER_SHIP_TURN_SPEED;
 		}
 		else if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE && !g_engine->m_input->IsKeyDown('S')) {
-			m_game->GetPreviousUpgradeChoose();
+			m_game->UpdateToPreviousUpgradeChoose();
 		}
 	}
 
+	if (g_engine->m_input->WasKeyJustPressed('K')) {
+		m_game->KillAllEntities();
+	}
 
 	if (g_engine->m_input->WasKeyJustReleased('T')) {
 		m_isSlowDown = false;
@@ -264,13 +268,13 @@ void App::HandlePlayerInput(){
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_DPAD_RIGHT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
-			m_game->GetNextUpgradeChoose();
+			m_game->UpdateToNextUpgradeChoose();
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_DPAD_LEFT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYER_UPGRADE_MODE) {
-			m_game->GetPreviousUpgradeChoose();
+			m_game->UpdateToPreviousUpgradeChoose();
 		}
 	}
 

@@ -1,9 +1,3 @@
-#include "Engine/Math/MathUtils.hpp"
-#include "Engine/Core/Engine.hpp"
-#include "Engine/Renderer/Renderer.hpp"
-#include "Engine/Core/ErrorWarningAssert.hpp"
-#include "Engine/Audio/AudioSystem.hpp"
-
 #include "Game/PlayerShip.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Asteroid.hpp"
@@ -13,6 +7,13 @@
 #include "Game/App.hpp"
 #include "Game/BeetleEnemy.hpp"
 #include "Game/WaspEnemy.hpp"
+
+#include "Engine/Math/MathUtils.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
+#include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 
 //-----------------------------------------------------------------------------------------------
 PlayerShip::PlayerShip(Game* game)
@@ -25,7 +26,6 @@ PlayerShip::PlayerShip(Game* game)
 	m_health = 3;
 
 	m_localMesh = new Vertex[m_vertexNum];
-	m_randomGenerator = RandomNumberGenerator();
 	GetLocalMesh(m_vertexNum, m_localMesh);
 
 }
@@ -40,13 +40,13 @@ void PlayerShip::Update(float deltaSeconds)
 
 	//--------------------------------------------------------------------------------
 	if (m_shieldBarVal > m_shieldBarMax * 0.5f && m_shieldBarMax > 0) {
-		if (BoundaryTeleport()) {
+		if (TeleportFromBoundary()) {
 			BurstShockWave(m_position, 0.2f, 20.f, Rgba8(255, 0, 200, 255));
 			BurstShockWave(m_position, 0.4f, 10.f, Rgba8(200, 0, 145, 255));
 		}
 	}
 	else {
-		BounceCheck();
+		CheckBounce();
 	}
 	//--------------------------------------------------------------------------------
 	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
@@ -68,7 +68,7 @@ void PlayerShip::Update(float deltaSeconds)
 	g_engine->m_audio->SetSoundPlaybackVolume(g_app->m_accelerateSoundPlaybackID, 0.5f * m_acceleration / PLAYER_SHIP_ACCELERATION);
 
 	//--------------------------------------------------------------------------------
-	if (!IsOffScreen()) {
+	if (!IsOffWorld()) {
 		m_lastFramePosition = m_position;
 	}
 }
@@ -93,7 +93,7 @@ void PlayerShip::Render() const
 											m_worldMesh[i].m_color.a);
 		}
 	}
-	float flameLength = -2.f - 2.f*(m_acceleration/ PLAYER_SHIP_ACCELERATION)*(m_randomGenerator.RollRandomFloatZeroToOne()*0.5f+1.f);
+	float flameLength = -2.f - 2.f*(m_acceleration/ PLAYER_SHIP_ACCELERATION)*(m_game->m_randomGenerator->RollRandomFloatZeroToOne()*0.5f+1.f);
 	m_worldMesh[15] = Vertex(Vec3(-2.f, 1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
 	m_worldMesh[16] = Vertex(Vec3(-2.f, -1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
 	m_worldMesh[17] = Vertex(Vec3(flameLength, 0.f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
@@ -102,10 +102,10 @@ void PlayerShip::Render() const
 
 	if (m_shieldBarVal > 0) {
 		if (m_shieldBarVal != m_shieldBarMax) {
-			DebugDrawDisc(m_position, 5.f, Rgba8(102, 153, 204, (unsigned char)(128.f * m_shieldBarVal / m_shieldBarMax)), Rgba8(102, 153, 204, 32));
+			DrawDisc(m_position, 5.f, Rgba8(102, 153, 204, (unsigned char)(128.f * m_shieldBarVal / m_shieldBarMax)), Rgba8(102, 153, 204, 32));
 		}
 		else {
-			DebugDrawDisc(m_position, 5.f, Rgba8(102, 153, 204, 200), Rgba8(102, 153, 204, 32));
+			DrawDisc(m_position, 5.f, Rgba8(102, 153, 204, 200), Rgba8(102, 153, 204, 32));
 		}
 	}
 }
@@ -170,14 +170,14 @@ void PlayerShip::GetLocalMesh(int vertexNum, Vertex* mesh) {
 }
 
 //-----------------------------------------------------------------------------------------------
-void PlayerShip::LoseHealth(float damage) {
+void PlayerShip::GetDamage(float damage) {
 	if (m_isDead || m_invincibleTimer>0.f) {
 		return;
 	}
 
 	if (damage < m_shieldBarVal) {
 		if (m_shieldBarVal > m_shieldBarMax * 0.7f && m_shieldExplosionRange > 0) {
-			ShockWaveAttack();
+			ReleaseShockWave();
 			BurstShockWave(m_position, 0.2f, m_shieldExplosionRange, Rgba8(102, 153, 204, 128));
 			BurstShockWave(m_position, 0.4f, m_shieldExplosionRange*2.f/3.f, Rgba8(102, 153, 204, 200));
 		}
@@ -209,7 +209,7 @@ void PlayerShip::GetHit(Vec2& hitTargetCenter, float hitTargetRadius) {
 void PlayerShip::GainExp(float expAmount) {
 	m_expBarVal += expAmount;
 	if (m_expBarVal > m_nextLevelExpVal) {
-		m_upgradeTimes = RoundDownToInt(m_expBarVal / m_nextLevelExpVal);
+		m_upgradeTimes += RoundDownToInt(m_expBarVal / m_nextLevelExpVal);
 		m_expBarVal -= (float)m_upgradeTimes * m_nextLevelExpVal;
 		m_curLevel += m_upgradeTimes;
 		m_nextLevelExpVal = (float)m_curLevel * 10.f;
@@ -223,10 +223,10 @@ void PlayerShip::GainExp(float expAmount) {
 
 //-----------------------------------------------------------------------------------------------
 void PlayerShip::GainUpgrade(PlayerUpgradeItem upgradeItem) {
-	if (upgradeItem.hpUpgrade != NONE_HP_UPGRADE) {
+	if (upgradeItem.hpUpgrade != NONE_HEALTH_UPGRADE) {
 		switch (upgradeItem.hpUpgrade)
 		{
-		case HP_MAX:
+		case HEALTH_MAX_UPGRADE:
 			m_healthBarMax += upgradeItem.upgradeVal;
 			break;
 		default:
@@ -239,13 +239,13 @@ void PlayerShip::GainUpgrade(PlayerUpgradeItem upgradeItem) {
 	if (upgradeItem.shieldUpgrade != NONE_SHIELD_UPGRADE) {
 		switch (upgradeItem.shieldUpgrade)
 		{
-		case SHIELD_MAX:
+		case SHIELD_MAX_UPGRADE:
 			m_shieldBarMax += upgradeItem.upgradeVal;
 			break;
-		case SHIELD_RECOVER:
+		case SHIELD_RECOVER_UPGREADE:
 			m_shieldRecoverSpeed += upgradeItem.upgradeVal;
 			break;
-		case SHIELD_EXPLOSION_RANGE:
+		case SHIELD_EXPLOSION_RANGE_UPGRADE:
 			m_shieldExplosionRange += upgradeItem.upgradeVal;
 			break;
 		default:
@@ -258,17 +258,17 @@ void PlayerShip::GainUpgrade(PlayerUpgradeItem upgradeItem) {
 	if (upgradeItem.bulletUpgrade != NONE_BULLET_UPGRADE) {
 		switch (upgradeItem.bulletUpgrade)
 		{
-		case BULLET_INTERVAL:
+		case BULLET_INTERVAL_UPGRADE:
 			m_fireInterval -= upgradeItem.upgradeVal;
 			if (m_fireInterval < 0.f) m_fireInterval = 0;
 			break;
-		case BULLET_BRANCH:
+		case BULLET_BRANCH_UPGRADE:
 			m_fireBranch += upgradeItem.upgradeVal;
 			break;
-		case BULLET_EXPLOSION_RANGE:
+		case BULLET_EXPLOSION_RANGE_UPGRADE:
 			m_bulletExplosionRange += upgradeItem.upgradeVal;
 			break;
-		case BULLET_TRACK:
+		case BULLET_TRACK_UPGRADE:
 			m_bulletTrackDuration += upgradeItem.upgradeVal;
 			break;
 		default:
@@ -277,10 +277,11 @@ void PlayerShip::GainUpgrade(PlayerUpgradeItem upgradeItem) {
 	}
 
 	m_upgradeTimes--;
+	m_game->RollUpgrades();
 }
 
 //-----------------------------------------------------------------------------------------------
-void PlayerShip::ShockWaveAttack() {
+void PlayerShip::ReleaseShockWave() {
 	for (int i = 0; i < MAX_BEETLES; i++) {
 		if (m_game->m_beetleEnemy[i] != nullptr) {
 			if (DoDiscsOverlap(m_position, m_game->m_player->m_shieldExplosionRange,
@@ -313,13 +314,13 @@ void PlayerShip::ShockWaveAttack() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void PlayerShip::BounceCheck() {
+void PlayerShip::CheckBounce() {
 	if (m_position.x - m_physicsRadius < 0) {
 		m_position = m_lastFramePosition;
 		m_velocity = m_velocity - 2.0f * Vec2(1, 0) * m_velocity.x;
 		m_game->AddCameraShake(m_bounceShakeAmp);
 		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.x + m_physicsRadius > WORLD_SIZE_X) {
@@ -327,7 +328,7 @@ void PlayerShip::BounceCheck() {
 		m_velocity = m_velocity - 2.0f * Vec2(-1, 0) * (-m_velocity.x);
 		m_game->AddCameraShake(m_bounceShakeAmp);
 		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.y - m_physicsRadius < 0) {
@@ -335,7 +336,7 @@ void PlayerShip::BounceCheck() {
 		m_velocity = m_velocity - 2.0f * Vec2(0, 1) * m_velocity.y;
 		m_game->AddCameraShake(m_bounceShakeAmp);
 		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
 	}
 
 	if (m_position.y + m_physicsRadius > WORLD_SIZE_Y) {
@@ -343,13 +344,13 @@ void PlayerShip::BounceCheck() {
 		m_velocity = m_velocity - 2.0f * Vec2(0, -1) * (-m_velocity.y);
 		m_game->AddCameraShake(m_bounceShakeAmp);
 		SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
+		g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
 	}
 }
 
 //----------------------------------------------------------------------------------------------
 void PlayerShip::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burstAngle, Rgba8 color, float scale) {
-	int debrisNum = m_randomGenerator.RollRandomIntInRange(numMin, numMax);
+	int debrisNum = m_game->m_randomGenerator->RollRandomIntInRange(numMin, numMax);
 	for (int i = 0; i < debrisNum; i++) {
 		int freeDebrisIndex = -1;
 		for (int j = 0; j < MAX_DEBRIS; j++) {
@@ -359,8 +360,8 @@ void PlayerShip::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float 
 			}
 		}
 		if (freeDebrisIndex > -1) {
-			float randomAngle = m_randomGenerator.RollRandomFloatInRange(-burstAngle/2.f, burstAngle/2.f);
-			float randomSpeed = m_randomGenerator.RollRandomFloatInRange(m_velocity.GetLength()*0.2f, m_velocity.GetLength());
+			float randomAngle = m_game->m_randomGenerator->RollRandomFloatInRange(-burstAngle/2.f, burstAngle/2.f);
+			float randomSpeed = m_game->m_randomGenerator->RollRandomFloatInRange(m_velocity.GetLength()*0.2f, m_velocity.GetLength());
 			m_game->m_debris[freeDebrisIndex] = new Debris(m_game, m_position,
 				burstDirection.GetRotatedByDegrees(randomAngle),
 				randomSpeed, color, scale);

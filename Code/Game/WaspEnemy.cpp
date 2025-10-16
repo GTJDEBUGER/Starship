@@ -1,9 +1,3 @@
-#include "Engine/Math/MathUtils.hpp"
-#include "Engine/Core/Engine.hpp"
-#include "Engine/Renderer/Renderer.hpp"
-#include "Engine/Core/ErrorWarningAssert.hpp"
-#include "Engine/Audio/AudioSystem.hpp"
-
 #include "Game/WaspEnemy.hpp"
 #include "Game/BeetleEnemy.hpp"
 #include "Game/GameCommon.hpp"
@@ -13,6 +7,13 @@
 #include "Game/Game.hpp"
 #include "Game/ShockWave.hpp"
 
+#include "Engine/Math/MathUtils.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
+#include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
+
 //-----------------------------------------------------------------------------------------------
 WaspEnemy::WaspEnemy(Game* game)
 	: Entity(game, Vec2(0, 0))
@@ -21,7 +22,7 @@ WaspEnemy::WaspEnemy(Game* game)
 	m_cosmeticRadius = ENEMY_WASP_COSMETIC_RADIUS * m_meshScale;
 	m_nearbyRadius = ENEMY_WASP_NEARBY_RADIUS * m_meshScale;
 	m_health = 3;
-	m_maxSpeed = m_randomGenerator.RollRandomFloatInRange(ENEMY_WASP_SPEED * 0.8, ENEMY_WASP_SPEED * 1.2);
+	m_maxSpeed = m_game->m_randomGenerator->RollRandomFloatInRange(ENEMY_WASP_SPEED * 0.8, ENEMY_WASP_SPEED * 1.2);
 
 	//SetPositionRandomOffWorld();
 	SetPositionRandomOffScreen(m_game->m_player->m_position);
@@ -40,7 +41,7 @@ void WaspEnemy::Update(float deltaSeconds)
 	}
 	m_deltaSeconds = deltaSeconds;
 	//--------------------------------------------------------------------------------
-	CollideTest();
+	CheckCollide();
 	FindNearbyEnemy();
 	BoidSimulation();
 
@@ -53,7 +54,7 @@ void WaspEnemy::Update(float deltaSeconds)
 	m_position += m_velocity * deltaSeconds;
 	m_beforeTeleportPos = m_position;
 
-	if (BoundaryTeleport()) {
+	if (TeleportFromBoundary()) {
 		BurstShockWave(m_beforeTeleportPos, 0.2f, 20.f, Rgba8(255, 0, 200, 255));
 		BurstShockWave(m_beforeTeleportPos, 0.4f, 10.f, Rgba8(200, 0, 145, 255));
 	}
@@ -103,7 +104,7 @@ void WaspEnemy::Die()
 		BurstShockWave(m_position, 0.2f, 20.f, Rgba8(255, 0, 0, 255));
 		BurstShockWave(m_position, 0.4f, 10.f, Rgba8(200, 0, 0, 255));
 		SoundID dieSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyDie.wav");
-		g_engine->m_audio->StartSound(dieSound, false, 1.1f, 0.f, m_randomGenerator.RollRandomFloatInRange(1.1f, 1.3f));
+		g_engine->m_audio->StartSound(dieSound, false, 1.1f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(1.1f, 1.3f));
 		m_isDead = true;
 	}
 }
@@ -294,19 +295,19 @@ void WaspEnemy::GetLocalMesh(int vertexNum, Vertex* mesh) {
 }
 
 //-----------------------------------------------------------------------------------------------
-void WaspEnemy::CollideTest() {
+void WaspEnemy::CheckCollide() {
 	if (!m_game->m_player->m_isDead && m_game->m_player->m_invincibleTimer == 0) {
 		if (DoDiscsOverlap(m_position, m_physicsRadius,
 			m_game->m_player->m_position, m_game->m_player->m_physicsRadius)) {
 			float playerVelocity = m_game->m_player->m_velocity.GetLength();
-			m_game->m_player->LoseHealth(5.f);
+			m_game->m_player->GetDamage(5.f);
 			m_game->m_player->GetHit(m_position, m_physicsRadius);
 			m_game->m_player->m_flashFraction = 1.f;
 
 			m_game->AddCameraShake(m_bounceShakeAmp);
 			SoundID shootSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/HitWall.wav");
-			g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.8f, 1.1f));
-			if (playerVelocity > m_hitDieSpeed) {
+			g_engine->m_audio->StartSound(shootSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.8f, 1.1f));
+			if (playerVelocity > m_killSpeed) {
 				m_finalHitDir = (m_position - m_game->m_player->m_position).GetNormalized();
 				Die();
 			}
@@ -316,7 +317,7 @@ void WaspEnemy::CollideTest() {
 
 //----------------------------------------------------------------------------------------------
 void WaspEnemy::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burstAngle, Rgba8 color, float scale) {
-	int debrisNum = m_randomGenerator.RollRandomIntInRange(numMin, numMax);
+	int debrisNum = m_game->m_randomGenerator->RollRandomIntInRange(numMin, numMax);
 	for (int i = 0; i < debrisNum; i++) {
 		int freeDebrisIndex = -1;
 		for (int j = 0; j < MAX_DEBRIS; j++) {
@@ -326,8 +327,8 @@ void WaspEnemy::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float b
 			}
 		}
 		if (freeDebrisIndex > -1) {
-			float randomAngle = m_randomGenerator.RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
-			float randomSpeed = m_randomGenerator.RollRandomFloatInRange(m_velocity.GetLength()*0.2f, m_velocity.GetLength());
+			float randomAngle = m_game->m_randomGenerator->RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
+			float randomSpeed = m_game->m_randomGenerator->RollRandomFloatInRange(m_velocity.GetLength()*0.2f, m_velocity.GetLength());
 			m_game->m_debris[freeDebrisIndex] = new Debris(m_game, m_position, 
 				burstDirection.GetRotatedByDegrees(randomAngle),
 				randomSpeed, color, scale);

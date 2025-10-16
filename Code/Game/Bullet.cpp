@@ -1,9 +1,3 @@
-#include "Engine/Math/MathUtils.hpp"
-#include "Engine/Core/Engine.hpp"
-#include "Engine/Renderer/Renderer.hpp"
-#include "Engine/Core/ErrorWarningAssert.hpp"
-#include "Engine/Audio/AudioSystem.hpp"
-
 #include "Game/Bullet.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Game.hpp"
@@ -13,6 +7,13 @@
 #include "Game/PlayerShip.hpp"
 #include "Game/BeetleEnemy.hpp"
 #include "Game/WaspEnemy.hpp"
+
+#include "Engine/Math/MathUtils.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
+#include "Engine/Renderer/Renderer.hpp"
+#include "Engine/Core/Engine.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
@@ -39,7 +40,7 @@ void Bullet::Update(float deltaSeconds)
 		m_trackTime = 0.f;
 	}
 
-	if(m_lifeTime <= 0.f || IsOffScreen() || m_health<=0) {
+	if(m_lifeTime <= 0.f || IsOffWorld() || m_health<=0) {
 		Die();
 		return;
 	}
@@ -47,7 +48,7 @@ void Bullet::Update(float deltaSeconds)
 		TrackNearestEnemy(deltaSeconds);
 	}
 	m_position += m_velocity * deltaSeconds;
-	CollideTest();
+	CheckCollide();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -61,9 +62,9 @@ void Bullet::Render() const
 	TransformVertexArrayXY3D(6, m_worldMesh, 1.f, m_orientationDegrees, m_position);
 	if (m_trackTime > 0.f) {
 		Rgba8 curTargetColor = Rgba8(0, 255, 0, (unsigned char)(128.f * (m_trackTime / m_game->m_player->m_bulletTrackDuration)));
-		DebugDrawRing(m_nearestPos, 5.f, curTargetColor, 0.7f);
-		DebugDrawLine(m_nearestPos + Vec2(-7.5, -7.5), m_nearestPos + Vec2(7.5, 7.5), curTargetColor, 0.7f);
-		DebugDrawLine(m_nearestPos + Vec2(-7.5, 7.5), m_nearestPos + Vec2(7.5, -7.5), curTargetColor, 0.7f);
+		DrawRing(m_nearestPos, 5.f, curTargetColor, 0.7f);
+		DrawLine(m_nearestPos + Vec2(-7.5, -7.5), m_nearestPos + Vec2(7.5, 7.5), curTargetColor, 0.7f);
+		DrawLine(m_nearestPos + Vec2(-7.5, 7.5), m_nearestPos + Vec2(7.5, -7.5), curTargetColor, 0.7f);
 	}
 	g_engine->m_renderer->DrawVertexArray(6, m_worldMesh);
 }
@@ -72,26 +73,26 @@ void Bullet::Render() const
 void Bullet::Die()
 {
 	if (!m_isDead) {
-		if (m_lifeTime > 0.f && !IsOffScreen()) {
+		if (m_lifeTime > 0.f && !IsOffWorld()) {
 			BurstDebris(m_debrisNumMin, m_debrisNumMax, -GetForwardVector(), 30.f, Rgba8(255, 255, 0, 255), 0.2f);
 			BurstShockWave(m_position, 0.2f, m_game->m_player->m_bulletExplosionRange, Rgba8(255, 200, 128, 255));
 			BurstShockWave(m_position, 0.3f, m_game->m_player->m_bulletExplosionRange * 2.f / 3.f, Rgba8(255, 200, 128, 255));
 
 			if (m_game->m_player->m_bulletExplosionRange > m_physicsRadius) {
-				ShockWaveAttack();
+				ReleaseShockWave();
 				SoundID shockWaveSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/ShockWaveSpawn.mp3");
 				g_engine->m_audio->StartSound(shockWaveSound, false, 2.0f, 0.f, 1.f);
 			}
 
 			SoundID hitSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/EnemyGetHurt.wav");
-			g_engine->m_audio->StartSound(hitSound, false, 1.0f, 0.f, m_randomGenerator.RollRandomFloatInRange(0.5f,1.1f));
+			g_engine->m_audio->StartSound(hitSound, false, 1.0f, 0.f, m_game->m_randomGenerator->RollRandomFloatInRange(0.5f,1.1f));
 		}
 		m_isDead = true;
 	}
 }
 
 //-----------------------------------------------------------------------------------------------
-void Bullet::ShockWaveAttack() {
+void Bullet::ReleaseShockWave() {
 	for (int i = 0; i < MAX_BEETLES; i++) {
 		if (m_game->m_beetleEnemy[i] != nullptr) {
 			if (DoDiscsOverlap(m_position, m_game->m_player->m_bulletExplosionRange,
@@ -124,7 +125,7 @@ void Bullet::ShockWaveAttack() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Bullet::CollideTest() {
+void Bullet::CheckCollide() {
 	for (int i = 0; i < MAX_BEETLES; i++) {
 		if (m_game->m_beetleEnemy[i] != nullptr) {
 			if (DoDiscsOverlap(m_position, m_physicsRadius,
@@ -200,7 +201,7 @@ void Bullet::GetLocalMesh(int vertexNum, Vertex* mesh) {
 
 //----------------------------------------------------------------------------------------------
 void Bullet::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burstAngle, Rgba8 color, float scale) {
-	int debrisNum = m_randomGenerator.RollRandomIntInRange(numMin, numMax);
+	int debrisNum = m_game->m_randomGenerator->RollRandomIntInRange(numMin, numMax);
 	for (int i = 0; i < debrisNum; i++) {
 		int freeDebrisIndex = -1;
 		for (int j = 0; j < MAX_DEBRIS; j++) {
@@ -210,8 +211,8 @@ void Bullet::BurstDebris(int numMin, int numMax, Vec2 burstDirection, float burs
 			}
 		}
 		if (freeDebrisIndex > -1) {
-			float randomAngle = m_randomGenerator.RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
-			float randomSpeed = m_randomGenerator.RollRandomFloatInRange(m_velocity.GetLength() * 0.2f, m_velocity.GetLength());
+			float randomAngle = m_game->m_randomGenerator->RollRandomFloatInRange(-burstAngle / 2.f, burstAngle / 2.f);
+			float randomSpeed = m_game->m_randomGenerator->RollRandomFloatInRange(m_velocity.GetLength() * 0.2f, m_velocity.GetLength());
 			m_game->m_debris[freeDebrisIndex] = new Debris(m_game, m_position,
 				burstDirection.GetRotatedByDegrees(randomAngle),
 				randomSpeed, color, scale);
