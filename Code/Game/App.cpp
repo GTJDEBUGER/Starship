@@ -18,7 +18,9 @@ App* g_app = nullptr;
 //-----------------------------------------------------------------------------------------------
 App::App()
 {
-	g_engine = new Engine();
+	EngineConfig config;
+
+	g_engine = new Engine(config);
 	m_game = new Game();
 
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
