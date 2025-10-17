@@ -19,6 +19,7 @@ App* g_app = nullptr;
 App::App()
 {
 	EngineConfig config;
+	config.m_windowConfig.m_clientAspect = 2.f;
 
 	g_engine = new Engine(config);
 	m_game = new Game();
@@ -61,14 +62,14 @@ App::~App()
 void App::RunFrame()
 {
 	//-------------------------------------------------------------------------------------------
-	HandlePlayerInput();
-	if (m_isShutdown) {
-		m_isShutdown = false;
-		return;
-	}
+	g_engine->BeginFrame();		
+		HandlePlayerInput();
 
-	//-------------------------------------------------------------------------------------------
-	g_engine->BeginFrame();	
+		if (m_isShutdown) {
+			m_isShutdown = false;
+			return;
+		}
+
 		Update();
 		Render();
 	g_engine->EndFrame();
