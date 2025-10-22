@@ -25,7 +25,7 @@ App::App()
 
 	m_game = new Game();
 
-	m_lastFrameTime = GetCurrentTimeSeconds();
+	m_lastFrameTime = static_cast<float>(GetCurrentTimeSeconds());
 
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/DieExplode.wav");
