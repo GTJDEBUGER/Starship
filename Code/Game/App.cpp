@@ -20,9 +20,12 @@ App::App()
 {
 	EngineConfig config;
 	config.m_windowConfig.m_clientAspect = 2.f;
+	config.m_windowConfig.m_windowTitle = "Starship Gold";
+	new Engine(config);
 
-	g_engine = new Engine(config);
 	m_game = new Game();
+
+	m_lastFrameTime = GetCurrentTimeSeconds();
 
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/DieExplode.wav");
@@ -56,6 +59,14 @@ App::~App()
 	m_game = nullptr;
 	delete g_engine;
 	g_engine = nullptr;
+}
+
+//-----------------------------------------------------------------------------------------------
+void App::RunMainLoop() {
+	while (!IsQuitting())
+	{
+		RunFrame();
+	}
 }
 
 //-----------------------------------------------------------------------------------------------

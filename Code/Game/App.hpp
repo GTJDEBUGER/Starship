@@ -12,6 +12,7 @@ class App
 public:
 	App();
 	~App();
+	void RunMainLoop();
 	void RunFrame();
 	void Update();
 	void Render();
