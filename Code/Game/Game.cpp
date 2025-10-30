@@ -17,6 +17,7 @@
 #include "Engine/Renderer/SimpleTriangleFont.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
+#include "Engine/Core/VertexUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
 
 //-----------------------------------------------------------------------------------------------

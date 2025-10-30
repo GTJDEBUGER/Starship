@@ -9,6 +9,7 @@
 #include "Game/WaspEnemy.hpp"
 
 #include "Engine/Math/MathUtils.hpp"
+#include "Engine/Core/VertexUtils.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/Engine.hpp"
