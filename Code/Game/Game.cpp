@@ -182,6 +182,8 @@ void Game::Update(float deltaSeconds)
 //---------------------------------------------------------------------------------------------------
 void Game::Render() const
 {
+	//Clear Screen
+	g_engine->m_renderer->ClearScreen(Rgba8(0, 0, 0));
 	//----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_PLAYING_MODE || m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
 		//-------------------------------------------------------------------------------------------

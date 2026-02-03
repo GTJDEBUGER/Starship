@@ -26,7 +26,13 @@ void DrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thick
 	tempMesh[4] = topRight;
 	tempMesh[5] = downRight;
 
-	g_engine->m_renderer->DrawVertexArray(6, tempMesh);
+	g_engine->m_renderer->CopyCPUToGPU(
+		tempMesh,
+		sizeof(tempMesh),
+		g_engine->m_renderer->m_immediateVBO
+	);
+	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateVBO);
+	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateVBO, sizeof(tempMesh) / sizeof(Vertex));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -90,7 +96,13 @@ void DrawDisc(Vec2 centre, float radius, Rgba8 outerColor, Rgba8 innerColor) {
 		Vec2(0.f, 0.f)
 	);
 
-	g_engine->m_renderer->DrawVertexArray(DEBUG_DRAWRING_SUBDIVISION * 3, tempMesh);
+	g_engine->m_renderer->CopyCPUToGPU(
+		tempMesh,
+		sizeof(tempMesh),
+		g_engine->m_renderer->m_immediateVBO
+	);
+	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateVBO);
+	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateVBO, sizeof(tempMesh) / sizeof(Vertex));
 }
 
 //-----------------------------------------------------------------------------------------------
