@@ -9,6 +9,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Debris::Debris(Game* game, Vec2 burstPosition, Vec2 burstDirection, float burstSpeed, Rgba8 color, float meshScale)
@@ -26,15 +27,15 @@ Debris::Debris(Game* game, Vec2 burstPosition, Vec2 burstDirection, float burstS
 }
 
 //-----------------------------------------------------------------------------------------------
-void Debris::Update(float deltaSeconds)
+void Debris::Update()
 {
-	m_lifeTimeCur -= deltaSeconds;
+	m_lifeTimeCur -= (float)m_game->m_gameClock->GetDeltaSeconds();
 	if (m_lifeTimeCur <= 0.f) {
 		Die();
 		return;
 	}
 	SetColorDuringLifeTime();
-	m_position += m_velocity * deltaSeconds;
+	m_position += m_velocity * (float)m_game->m_gameClock->GetDeltaSeconds();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -46,6 +47,7 @@ void Debris::Render() const
 		m_worldMesh[i] = m_localMesh[i];
 	}
 	TransformVertexArrayXY3D(MAX_DEBRIS_SUBDIVISION * 3, m_worldMesh, m_meshScale, m_orientationDegrees, m_position);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(MAX_DEBRIS_SUBDIVISION * 3, m_worldMesh);
 }
 

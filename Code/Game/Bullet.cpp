@@ -15,6 +15,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
@@ -33,10 +34,10 @@ Bullet::Bullet(Game* game, Vec2 startPos, Vec2 spawnDirction)
 }
 
 //-----------------------------------------------------------------------------------------------
-void Bullet::Update(float deltaSeconds)
+void Bullet::Update()
 {
-	m_lifeTime -= deltaSeconds;
-	m_trackTime -= deltaSeconds;
+	m_lifeTime -= (float)m_game->m_gameClock->GetDeltaSeconds();
+	m_trackTime -= (float)m_game->m_gameClock->GetDeltaSeconds();
 	if (m_trackTime < 0.f) {
 		m_trackTime = 0.f;
 	}
@@ -46,9 +47,9 @@ void Bullet::Update(float deltaSeconds)
 		return;
 	}
 	if (m_trackTime > 0.f) {
-		TrackNearestEnemy(deltaSeconds);
+		TrackNearestEnemy();
 	}
-	m_position += m_velocity * deltaSeconds;
+	m_position += m_velocity * (float)m_game->m_gameClock->GetDeltaSeconds();
 	CheckCollide();
 }
 
@@ -67,6 +68,7 @@ void Bullet::Render() const
 		DrawLine(m_nearestPos + Vec2(-7.5, -7.5), m_nearestPos + Vec2(7.5, 7.5), curTargetColor, 0.7f);
 		DrawLine(m_nearestPos + Vec2(-7.5, 7.5), m_nearestPos + Vec2(7.5, -7.5), curTargetColor, 0.7f);
 	}
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(6, m_worldMesh);
 }
 
@@ -162,7 +164,7 @@ void Bullet::CheckCollide() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Bullet::TrackNearestEnemy(float deltaSeconds) {
+void Bullet::TrackNearestEnemy() {
 	Vec2 nearestDir = Vec2(WORLD_SIZE_X, WORLD_SIZE_Y);
 	for (int i = 0; i < MAX_BEETLES; i++) {
 		if (m_game->m_beetleEnemy[i] != nullptr) {
@@ -181,7 +183,7 @@ void Bullet::TrackNearestEnemy(float deltaSeconds) {
 		}
 	}
 	if (nearestDir != Vec2(WORLD_SIZE_X, WORLD_SIZE_Y)) {
-		m_velocity += nearestDir.GetNormalized() * m_trackForce * deltaSeconds;
+		m_velocity += nearestDir.GetNormalized() * m_trackForce * (float)m_game->m_gameClock->GetDeltaSeconds();
 	}
 }
 

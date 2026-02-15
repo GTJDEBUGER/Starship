@@ -7,7 +7,7 @@ public:
 	Asteroid(Game* game);
 	~Asteroid() override = default;
 
-	void             Update(float deltaSeconds) override;
+	void             Update() override;
 	void             Render() const override;
 	void             Die() override;
 	void             CheckCollide();

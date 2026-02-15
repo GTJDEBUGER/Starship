@@ -12,20 +12,27 @@
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
+#include "Engine/Core/DevConsole.hpp"
 
 App* g_app = nullptr;
 
 //-----------------------------------------------------------------------------------------------
 App::App()
 {
+	m_screenCamera = new Camera(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y));
+
 	EngineConfig config;
 	config.m_windowConfig.m_clientAspect = 2.f;
 	config.m_windowConfig.m_windowTitle = "Starship Gold";
+	config.m_devConsoleConfig.m_camera = m_screenCamera;
 	new Engine(config);
 
 	m_game = new Game();
 
-	m_lastFrameTime = static_cast<float>(GetCurrentTimeSeconds());
+	g_engine->m_eventSystem->SubscribeEventCallbackFunction("quit", &HandleQuit, "Close whole game application.", true);
+	g_engine->m_eventSystem->SubscribeEventCallbackFunction("setTimeScale", &HandleSetTimeScale, "Set game running at a new time scale. (Parameter required: scale=?)", true);
+	g_engine->m_eventSystem->FireEvent("help");
 
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/ShootBullet.mp3");
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/DieExplode.wav");
@@ -50,6 +57,23 @@ App::App()
 
 	SoundID accelerateSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
 	m_accelerateSoundPlaybackID = g_engine->m_audio->StartSound(accelerateSound, true, 1.0f, 0.f, 0.f);
+
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Stsrship GOLD");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Input Tutorial:");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-F1 Draw debug rings and lines");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-F8 Force restart whole game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-T Slow down whole game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-O Run one step of the game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-P Pause whole game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-I Generate new asteroids");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-SPACEE Fire bullets or start game at attract mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-N Respawn player");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-E Accelerate players spaceship");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-S Rotate players spaceship counterclockwise or select left upgrade at player upgrade board");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-F Rotate players spaceship clockwise or select right upgrade at player upgrade board");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-ENTER Confirm upgrade at player upgrade board");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-ESC Switch from game mode to attract mode or shut down application in attract mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-K Cheat button for kill all entities in game");
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -90,33 +114,34 @@ void App::RunFrame()
 //-----------------------------------------------------------------------------------------------
 void App::Update() {
 	//-------------------------------------------------------------------------------------------
-	float deltaSeconds = static_cast<float>(GetCurrentTimeSeconds()) - m_lastFrameTime;
-
-	float originalDeltaSeconds = deltaSeconds;
 	if (m_isSlowDown) {
-		deltaSeconds *= 0.1f;
-		originalDeltaSeconds = deltaSeconds;
+		m_game->m_gameClock->SetTimeScale(m_gameTimeScale*0.1f);
 	}
 	if (m_isPause) {
-		deltaSeconds = 0.f;
+		m_game->m_gameClock->SetTimeScale(0.f);
+		m_game->m_gameClock->Pause();
 	}
+	if (!m_isSlowDown && !m_isPause) {
+		m_game->m_gameClock->SetTimeScale(m_gameTimeScale);
+		m_game->m_gameClock->Unpause();
+	}
+
 	if (m_isRunSingleStep) {
 		m_isRunSingleStep = false;
-		deltaSeconds = originalDeltaSeconds;
-
 		m_isPause = true;
+		m_game->m_gameClock->StepSingleFrame();
 	}
 
+	Clock::TickSystemClock();
 	//-------------------------------------------------------------------------------------------
-	m_game->Update(deltaSeconds);
-
-	//-------------------------------------------------------------------------------------------
-	m_lastFrameTime = static_cast<float>(GetCurrentTimeSeconds());
+	m_game->Update();
 }
 
 //-----------------------------------------------------------------------------------------------
 void App::Render() {
 	m_game->Render();
+
+	g_engine->m_devConsole->Render(AABB2(Vec2(0,0), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y)));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -127,8 +152,8 @@ bool App::IsQuitting() {
 //-----------------------------------------------------------------------------------------------
 void App::Shutdown()
 {
-	delete g_app;
-	g_app = new App();
+	delete m_game;
+	m_game = new Game();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -136,6 +161,10 @@ void App::HandlePlayerInput(){
 
 	//Keyboard control
 	//-------------------------------------------------------------------------------------------
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_TILDE)) {
+		g_engine->m_devConsole->ToggleOpen();
+	}
+
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F8)) {
 		Shutdown();
 		m_isShutdown = true;
@@ -308,3 +337,22 @@ void App::HandlePlayerInput(){
 	}
 }
 
+//-----------------------------------------------------------------------------------------------
+bool App::HandleQuit([[maybe_unused]] EventArgs& args) {
+	g_app->m_isQuitting = true;
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------------------------
+bool App::HandleSetTimeScale([[maybe_unused]] EventArgs& args) {
+	float timeScale = args.GetValue("scale", -1.f);
+	if (timeScale >= 0.f) {
+		g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, Stringf("Set game running at new time scale. (scale = %f)", timeScale));
+		g_app->m_gameTimeScale = timeScale;
+	}
+	else {
+		g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_ERROR, Stringf("Invalid time scale! (scale = %f)", timeScale));
+	}
+	return true;
+}

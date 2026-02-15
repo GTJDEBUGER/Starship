@@ -7,7 +7,7 @@ public:
 	BeetleEnemy(Game* game);
 	~BeetleEnemy() override = default;
 
-	void             Update(float deltaSeconds) override;
+	void             Update() override;
 	void             Render() const override;
 	void             Die() override;
 	void             CheckCollide();
@@ -28,8 +28,6 @@ private:
 	void             SimulationBoids();
 
 private:
-	float            m_deltaSeconds                          = 0;
-
 	Entity*          m_nearbyEnemy[MAX_BEETLES + MAX_WASPS];
 	int              m_nearbyEnemyCount                      = 0;
 	float            m_boidSeprationBoundery                 = 20.f;

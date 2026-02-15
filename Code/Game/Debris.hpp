@@ -8,7 +8,7 @@ public:
 			float burstSpeed, Rgba8 color, float meshScale);
 	~Debris() override = default;
 
-	void             Update(float deltaSeconds) override;
+	void             Update() override;
 	void             Render() const override;
 	void             Die() override;
 				     

@@ -12,6 +12,7 @@ class Debris;
 class ShockWave;
 class Camera;
 class RandomNumberGenerator;
+class Clock;
 
 //-----------------------------------------------------------------------------------------------
 enum GameState {
@@ -76,7 +77,7 @@ class Game {
 public:
 	Game();
 	~Game();
-	void                    Update(float deltaSeconds);
+	void                    Update();
 	void	                Render() const;
 	void	                DelayQuit(float delayTime);
 	void	                AddCameraShake(float amp);
@@ -91,7 +92,7 @@ public:
 public:
 	PlayerShip*             m_player                     = nullptr;
 	Camera*                 m_worldCamera                = nullptr;
-	Camera*                 m_screenCamera               = nullptr;
+	Camera*                 m_viewCamera                 = nullptr;
 	RandomNumberGenerator*  m_randomGenerator            = nullptr;
 	Asteroid*               m_asteroids[MAX_ASTEROIDS];
 	Bullet*                 m_bullets[MAX_BULLETS];
@@ -99,6 +100,7 @@ public:
 	WaspEnemy*              m_waspEnemy[MAX_WASPS];
 	Debris*                 m_debris[MAX_DEBRIS];
 	ShockWave*              m_shockWaves[MAX_SHOCKWAVE];
+	Clock*                  m_gameClock                  = nullptr;
 
 private:
 	void                    GenerateStarsMesh(int starCount, Vertex* startsMesh,
@@ -112,11 +114,11 @@ private:
 	void                    HandleRespawnPlayerInput();
 	void                    LoadNextWave(int levelIndex);
 	void                    CheckWaveProgress();
-	void                    DecayCameraShake(float deltaSeconds);
-	void                    UpdateEntities(float deltaSeconds);
-	void                    UpdateCameras(float deltaSeconds);
-	void                    UpdateAllAttractModeBoids(float deltaSeconds);
-	void                    UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSeconds);
+	void                    DecayCameraShake();
+	void                    UpdateEntities();
+	void                    UpdateCameras();
+	void                    UpdateAllAttractModeBoids();
+	void                    UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid);
 	void                    RenderPoolEntitys() const;
 	void                    RenderDebugThings() const;
 	void                    RenderUI() const;
@@ -143,9 +145,6 @@ private:
 				             		            	          {160, 800, 400}, //Wave 4
 				             		            	          {320, 1000, 1000}//Wave 5 
 				             		                   }   ;
-				              						   	   
-	float                   m_gameRunTime                   = 0.f;
-	float                   m_deltaSeconds                  = 0.f;
 						    
 	bool                    m_gameModeStartFlag             = true;		               						   		   
 	float                   m_waveAnimationTotalTime        = 2.f;

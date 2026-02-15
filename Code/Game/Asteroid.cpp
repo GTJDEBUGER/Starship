@@ -13,6 +13,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Asteroid::Asteroid(Game* game)
@@ -71,7 +72,7 @@ Asteroid::Asteroid(Game* game)
 }
 
 //-----------------------------------------------------------------------------------------------
-void Asteroid::Update(float deltaSeconds)
+void Asteroid::Update()
 {
 	//--------------------------------------------------------------------------------
 	if (m_health <= 0) {
@@ -82,11 +83,11 @@ void Asteroid::Update(float deltaSeconds)
 	CheckCollide();
 	TeleportFromBoundary();
 	//--------------------------------------------------------------------------------
-	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
+	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, 1.f);
 
 	//--------------------------------------------------------------------------------
-	m_position += m_velocity * ASTEROID_SPEED * deltaSeconds;
-	m_orientationDegrees += m_angularVelocity * deltaSeconds;
+	m_position += m_velocity * ASTEROID_SPEED * (float)m_game->m_gameClock->GetDeltaSeconds();
+	m_orientationDegrees += m_angularVelocity * (float)m_game->m_gameClock->GetDeltaSeconds();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -102,6 +103,7 @@ void Asteroid::Render() const
 			m_worldMesh[i].m_color.a);
 	}
 	TransformVertexArrayXY3D(48, m_worldMesh, 1.f, m_orientationDegrees, m_position);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(48, m_worldMesh);
 }
 

@@ -9,7 +9,7 @@ public:
 	Bullet(Game* game, Vec2 position, Vec2 spawnDirction);
 	~Bullet() override = default;
 
-	void             Update(float deltaSeconds) override;
+	void             Update() override;
 	void             Render() const override;
 	void             Die() override;
 				     
@@ -20,7 +20,7 @@ private:
 	void             BurstShockWave(Vec2 position, float duration, float spreadDistance, Rgba8 waveColor);
 	void             ReleaseShockWave();
 	void             CheckCollide();
-	void             TrackNearestEnemy(float deltaSeconds);
+	void             TrackNearestEnemy();
 
 private:
 	float            m_lifeTime     = 1.f;

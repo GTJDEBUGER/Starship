@@ -19,6 +19,7 @@
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/VertexUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Game::Game()
@@ -27,8 +28,9 @@ Game::Game()
 	InitialObjectPools();
 	LoadNextWave(m_curLevelIndex);
 	m_worldCamera = new Camera(Vec2(WORLD_CENTER_X - VIEW_CENTER_X, WORLD_CENTER_Y - VIEW_CENTER_Y), Vec2(WORLD_CENTER_X+VIEW_CENTER_X, WORLD_CENTER_Y+VIEW_CENTER_Y));
-	m_screenCamera = new Camera(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y));
+	m_viewCamera = new Camera(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y));
 	m_randomGenerator = new RandomNumberGenerator();
+	m_gameClock = new Clock();
 
 	m_attractModeBoids[0].boidsType = 0;
 	m_attractModeBoids[0].isActive = true;
@@ -67,14 +69,17 @@ Game::Game()
 //-----------------------------------------------------------------------------------------------
 Game::~Game()
 {
+	delete m_gameClock;
+	m_gameClock = nullptr;
+
 	delete m_randomGenerator;
 	m_randomGenerator = nullptr;
 
 	delete m_worldCamera;
 	m_worldCamera = nullptr;
 
-	delete m_screenCamera;
-	m_screenCamera = nullptr;
+	delete m_viewCamera;
+	m_viewCamera = nullptr;
 
 	delete m_player;
 	m_player = nullptr;
@@ -82,17 +87,20 @@ Game::~Game()
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::Update(float deltaSeconds)
+void Game::Update()
 {
-	m_deltaSeconds = deltaSeconds;
-	m_gameRunTime += deltaSeconds;
 	//-----------------------------------------------------------------------------------------------
 	if (m_nextGameState != m_curGameState) {
 		m_curGameState = m_nextGameState;
 	}
+
 	//-----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
-		m_playModeSoundSpeed = GetClamped(m_playModeSoundSpeed - m_playModeSoundDecaySpeed * deltaSeconds, 0.5f, 1.f);
+		m_playModeSoundSpeed = GetClamped(
+			m_playModeSoundSpeed - m_playModeSoundDecaySpeed * (float)m_gameClock->GetDeltaSeconds(), 
+			0.5f* (float)m_gameClock->GetTimeScale(), 
+			(float)m_gameClock->GetTimeScale()
+		);
 		g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, m_playModeSoundSpeed);
 		if (m_playerUpgradeStartFlag) {
 			RollUpgrades();
@@ -108,31 +116,31 @@ void Game::Update(float deltaSeconds)
 	if (m_curGameState == GAME_PLAYING_MODE) {
 		m_attractModeStartFlag = true;
 		m_playerUpgradeStartFlag = true;
-		m_playModeSoundSpeed = GetClamped(m_playModeSoundSpeed + m_playModeSoundDecaySpeed * deltaSeconds, 0.f, 1.f);
+		m_playModeSoundSpeed = GetClamped(m_playModeSoundSpeed + m_playModeSoundDecaySpeed * (float)m_gameClock->GetDeltaSeconds(), 0.f, (float)m_gameClock->GetTimeScale());
 		g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, m_playModeSoundSpeed);
 
 		if (m_gameModeStartFlag) {
 			g_engine->m_audio->SetSoundPlaybackRestart(g_app->m_gameSoundPlaybackID);
-			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 1.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, (float)m_gameClock->GetTimeScale());
 			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, 0.f);
-			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_accelerateSoundPlaybackID, 1.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_accelerateSoundPlaybackID, (float)m_gameClock->GetTimeScale());
 			m_gameModeStartFlag = false;
 		}
 
 		//-----------------------------------------------------------------------------------------------
 		if (m_delayQuitFlag) {
-			m_delayQuitWaitedTime += deltaSeconds;
+			m_delayQuitWaitedTime += (float)m_gameClock->GetDeltaSeconds();
 			if (m_delayQuitWaitedTime > m_delayQuitDuration) {
 				m_nextGameState = GAME_ATTRACT_MODE;
 			}
 
-			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 1.f - m_delayQuitWaitedTime / m_delayQuitDuration);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, (1.f - m_delayQuitWaitedTime / m_delayQuitDuration)* (float)m_gameClock->GetTimeScale());
 		}
 		//-----------------------------------------------------------------------------------------------
 		if (m_player != nullptr && !m_player->m_isDead) {
-			m_player->Update(deltaSeconds);
+			m_player->Update();
 		}
-		UpdateEntities(deltaSeconds);
+		UpdateEntities();
 		HandleEntitiesCollide();
 		//-----------------------------------------------------------------------------------------------
 		HandleFiringInput();
@@ -143,10 +151,10 @@ void Game::Update(float deltaSeconds)
 		//-----------------------------------------------------------------------------------------------
 		CheckWaveProgress();
 		//-----------------------------------------------------------------------------------------------
-		UpdateCameras(deltaSeconds);
+		UpdateCameras();
 
 		//-----------------------------------------------------------------------------------------------
-		m_waveAnimationTimeCount += deltaSeconds;
+		m_waveAnimationTimeCount += (float)m_gameClock->GetDeltaSeconds();
 	}
 	
 	//-----------------------------------------------------------------------------------------------
@@ -154,25 +162,28 @@ void Game::Update(float deltaSeconds)
 		m_gameModeStartFlag = true;
 		if (m_attractModeStartFlag) {
 			g_engine->m_audio->SetSoundPlaybackRestart(g_app->m_attractSoundPlaybackID);
-			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, 1.f);
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, (float)m_gameClock->GetTimeScale());
 			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_gameSoundPlaybackID, 0.f);
 			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_accelerateSoundPlaybackID, 0.f);
 			m_attractModeStartFlag = false;
 		}
+		else {
+			g_engine->m_audio->SetSoundPlaybackSpeed(g_app->m_attractSoundPlaybackID, (float)m_gameClock->GetTimeScale());
+		}
 
-		UpdateAllAttractModeBoids(deltaSeconds);
+		UpdateAllAttractModeBoids();
 
-		m_titleAnimationTimeCount += deltaSeconds;
+		m_titleAnimationTimeCount += (float)m_gameClock->GetDeltaSeconds();
 		if (m_titleAnimationTimeCount > m_titleAnimationTotalTime) {
 			m_titleAnimationTimeCount = 0;
 		}
 
-		m_boidsAnimationTimeCount += deltaSeconds;
+		m_boidsAnimationTimeCount += (float)m_gameClock->GetDeltaSeconds();
 		if (m_boidsAnimationTimeCount > m_boidsAnimationTotalTime) {
 			m_boidsAnimationTimeCount = 0;
 		}
 
-		m_boidsPlayerAnimationTimeCount += deltaSeconds;
+		m_boidsPlayerAnimationTimeCount += (float)m_gameClock->GetDeltaSeconds();
 		if (m_boidsPlayerAnimationTimeCount > m_boidsPlayerAnimationTotalTime) {
 			m_boidsPlayerAnimationTimeCount = 0;
 		}
@@ -206,7 +217,7 @@ void Game::Render() const
 
 		//------------------------------------------------------------------------------------------
 
-		g_engine->m_renderer->BeginCamera(*m_screenCamera);
+		g_engine->m_renderer->BeginCamera(*m_viewCamera);
 
 		RenderUI();
 
@@ -218,19 +229,19 @@ void Game::Render() const
 				Rgba8(0, 0, 0, (unsigned char)(255.f * (m_delayQuitWaitedTime / m_delayQuitDuration))));
 		}
 
-		g_engine->m_renderer->EndCamera(*m_screenCamera);
+		g_engine->m_renderer->EndCamera(*m_viewCamera);
 	}
 
 	//----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_ATTRACT_MODE) {
-		g_engine->m_renderer->BeginCamera(*m_screenCamera);
+		g_engine->m_renderer->BeginCamera(*m_viewCamera);
 		RenderStars();
 		if (g_app->m_isDebugDraw) {
 			RenderDebugThings();
 		}
 		RenderAttractMode();
 
-		g_engine->m_renderer->EndCamera(*m_screenCamera);
+		g_engine->m_renderer->EndCamera(*m_viewCamera);
 	}
 }
 
@@ -303,11 +314,11 @@ void Game::DeleteObjectPools() {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::UpdateEntities(float deltaSeconds) {
+void Game::UpdateEntities() {
 	for (int i = 0; i < MAX_ASTEROIDS; i++)
 	{
 		if (m_asteroids[i] != nullptr) {
-			m_asteroids[i]->Update(deltaSeconds);
+			m_asteroids[i]->Update();
 			if (m_asteroids[i]->m_isDead) {
 				delete m_asteroids[i];
 				m_asteroids[i] = nullptr;
@@ -317,7 +328,7 @@ void Game::UpdateEntities(float deltaSeconds) {
 	for (int i = 0; i < MAX_BULLETS; i++)
 	{
 		if (m_bullets[i] != nullptr) {
-			m_bullets[i]->Update(deltaSeconds);
+			m_bullets[i]->Update();
 			if (m_bullets[i]->m_isDead) {
 				delete m_bullets[i];
 				m_bullets[i] = nullptr;
@@ -327,7 +338,7 @@ void Game::UpdateEntities(float deltaSeconds) {
 	for (int i = 0; i < MAX_BEETLES; i++)
 	{
 		if (m_beetleEnemy[i] != nullptr) {
-			m_beetleEnemy[i]->Update(deltaSeconds);
+			m_beetleEnemy[i]->Update();
 			if (m_beetleEnemy[i]->m_isDead) {
 				delete m_beetleEnemy[i];
 				m_beetleEnemy[i] = nullptr;
@@ -336,7 +347,7 @@ void Game::UpdateEntities(float deltaSeconds) {
 	}
 	for (int i = 0; i < MAX_WASPS; i++) {
 		if (m_waspEnemy[i] != nullptr) {
-			m_waspEnemy[i]->Update(deltaSeconds);
+			m_waspEnemy[i]->Update();
 			if (m_waspEnemy[i]->m_isDead) {
 				m_waspEnemy[i] = nullptr;
 			}
@@ -344,7 +355,7 @@ void Game::UpdateEntities(float deltaSeconds) {
 	}
 	for (int i = 0; i < MAX_DEBRIS; i++) {
 		if (m_debris[i] != nullptr) {
-			m_debris[i]->Update(deltaSeconds);
+			m_debris[i]->Update();
 			if (m_debris[i]->m_isDead) {
 				m_debris[i] = nullptr;
 			}
@@ -352,7 +363,7 @@ void Game::UpdateEntities(float deltaSeconds) {
 	}
 	for (int i = 0; i < MAX_SHOCKWAVE; i++) {
 		if (m_shockWaves[i] != nullptr) {
-			m_shockWaves[i]->Update(deltaSeconds);
+			m_shockWaves[i]->Update();
 			if (m_shockWaves[i]->m_isDead) {
 				m_shockWaves[i] = nullptr;
 			}
@@ -458,8 +469,8 @@ void Game::HandleRespawnPlayerInput() {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::UpdateCameras(float deltaSeconds) {
-	DecayCameraShake(deltaSeconds);
+void Game::UpdateCameras() {
+	DecayCameraShake();
 
 	m_worldCamera->LookAt2D(m_player->m_position, Vec2(-VIEW_CENTER_X, -VIEW_CENTER_Y), Vec2(VIEW_CENTER_X, VIEW_CENTER_Y));
 	m_worldCamera->ConstrainOrthoView(Vec2(0, 0), Vec2(WORLD_SIZE_X, WORLD_SIZE_Y));
@@ -704,6 +715,7 @@ void Game::RenderUIHealth() const{
 			Vec2(15.f + 4.f * PLAYER_SHIP_COSMETIC_RADIUS * (2 * i + 1),
 				(m_player->m_shieldBarMax > 0 ? -60.f : -35.f)
 				+ SCREEN_SIZE_Y - 4.f * PLAYER_SHIP_COSMETIC_RADIUS));
+		g_engine->m_renderer->BindTexture(nullptr);
 		g_engine->m_renderer->DrawVertexArray(15, screenPlayerHealthMesh);
 	}
 }
@@ -781,6 +793,7 @@ void Game::RenderUIMiniMap() const {
 		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(5.f, -45.f),
 		20.f,
 		Rgba8(0, 255, 0, 224), 0.5f);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 	DrawLine(m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -50) + Vec2(-m_miniMapFrameThickness / 2.f, -m_miniMapFrameThickness / 2.f),
 		m_miniMapCenter + Vec2(-WORLD_CENTER_X, -WORLD_CENTER_Y) * m_miniMapReduceRatio + Vec2(0, -15) + Vec2(-m_miniMapFrameThickness / 2.f, m_miniMapFrameThickness / 2.f),
@@ -806,6 +819,7 @@ void Game::RenderUIWaves() const {
 		Rgba8(255, 255, 255, (unsigned char) (255.f * SinDegrees(waveFraction*180.f))), 0.5f);
 	TransformVertexArrayXY3D((int)textVertex.size(), textVertex.data(), 1.f, 0.f,
 		Vec2(SCREEN_CENTER_X - 100.f, SCREEN_CENTER_Y + 200.f));
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 }
 
@@ -845,11 +859,13 @@ void Game::RenderUIUpgrade() const {
 
 	AddVertsForTextTriangles2D(textVertex, "KEYBOARD: SELECT LEFT(S) SELECT RIGHT(F) CONFIRM(ENTER)", Vec2(15.f, 40.f), 10.f, Rgba8(0, 200, 0, 255));
 	AddVertsForTextTriangles2D(textVertex, "CONTROLLER: SELECT LEFT(DEPAD-L) SELECT RIGHT(DEPAD-R) CONFIRM(X)", Vec2(15.f, 25.f), 10.f, Rgba8(0, 200, 0, 255));
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 
 	std::vector<Vertex> shineTextVertex;
 	AddVertsForTextTriangles2D(shineTextVertex, "LEVEL UP! UPGRADE YOUR SHIP", Vec2(SCREEN_CENTER_X - 445.f, SCREEN_SIZE_Y - 70.f), 50.f, Rgba8(0, 200, 0, 255));
-	TransformVertexArrayShine((int)shineTextVertex.size(), shineTextVertex.data(), 1.f, 0.f,Vec2(0,0), 1.2f * m_gameRunTime);
+	TransformVertexArrayShine((int)shineTextVertex.size(), shineTextVertex.data(), 1.f, 0.f,Vec2(0,0), 1.2f * (float)m_gameClock->GetTotalSeconds());
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)shineTextVertex.size(), shineTextVertex.data());
 
 	RenderUIUpgradeItem(Vec2(SCREEN_CENTER_X - 350.f, SCREEN_CENTER_Y), m_playerUpgradeItems[m_upgradeChooseHealth], 0);
@@ -887,6 +903,7 @@ void Game::RenderUIUpgradeItem(Vec2 center, PlayerUpgradeItem content, int index
 	else {
 		AddVertsForTextTriangles2D(textVertex, Stringf("Upgrade%d", index+1), center + Vec2(-55.f, -m_upgradeItemHeight / 2.f - 30.f), 20.f, Rgba8(0, 128, 0, 255));
 	}
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 }
 
@@ -910,8 +927,8 @@ void Game::AddCameraShake(float amp) {
 }
 
 //--------------------------------------------------------------------------------------------------
-void Game::DecayCameraShake(float deltaSeconds) {
-	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp - deltaSeconds * m_cameraShakeDecaySpeed, 0.f, m_maxCameraShakeAmp);
+void Game::DecayCameraShake() {
+	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp - (float)m_gameClock->GetDeltaSeconds() * m_cameraShakeDecaySpeed, 0.f, m_maxCameraShakeAmp);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -953,7 +970,7 @@ PlayerUpgradeItem const Game::GetChoseUpgrade() const {
 
 //--------------------------------------------------------------------------------------------------
 void Game::RenderAttractMode() const {
-	g_engine->m_renderer->BeginCamera(*m_screenCamera);
+	g_engine->m_renderer->BeginCamera(*m_viewCamera);
 	float titleFraction = m_titleAnimationTimeCount / m_titleAnimationTotalTime;
 	float boidsFraction = m_boidsAnimationTimeCount / m_boidsAnimationTotalTime;
 	float playerFraction = m_boidsPlayerAnimationTimeCount / m_boidsPlayerAnimationTotalTime;
@@ -971,6 +988,7 @@ void Game::RenderAttractMode() const {
 				TransformVertexArrayXY3D(PlayerShip::m_vertexNum, worldMesh,
 					4.f, m_attractModeBoids[i].velocity.GetOrientationDegrees(),
 					m_attractModeBoids[i].position);
+				g_engine->m_renderer->BindTexture(nullptr);
 				g_engine->m_renderer->DrawVertexArray(PlayerShip::m_vertexNum, worldMesh);
 
 				DrawDisc(m_attractModeBoids[i].position, 
@@ -1000,6 +1018,7 @@ void Game::RenderAttractMode() const {
 				TransformVertexArrayXY3D(BeetleEnemy::m_vertexNum - 6, worldMesh,
 					4.f, m_attractModeBoids[i].velocity.GetOrientationDegrees(),
 					m_attractModeBoids[i].position);
+				g_engine->m_renderer->BindTexture(nullptr);
 				g_engine->m_renderer->DrawVertexArray(BeetleEnemy::m_vertexNum - 6, worldMesh);
 			}
 			else if (m_attractModeBoids[i].boidsType == 2) {
@@ -1010,6 +1029,7 @@ void Game::RenderAttractMode() const {
 				TransformVertexArrayXY3D(WaspEnemy::m_vertexNum - 12, worldMesh,
 					4.f, m_attractModeBoids[i].velocity.GetOrientationDegrees(),
 					m_attractModeBoids[i].position);
+				g_engine->m_renderer->BindTexture(nullptr);
 				g_engine->m_renderer->DrawVertexArray(WaspEnemy::m_vertexNum - 12, worldMesh);
 			}
 		}
@@ -1033,6 +1053,7 @@ void Game::RenderAttractMode() const {
 	AddVertsForTextTriangles2D(textVertex, "PRESS KEYBOARD (SPACE) OR CONTROLLER (A) START GAME", 
 							Vec2(SCREEN_CENTER_X - 280.f,  30.f), 15.f, 
 							Rgba8(255, 255, 255, (unsigned char)(SinDegrees(titleFraction * 180.f) *200.f + 55.f)));
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)textVertex.size(), textVertex.data());
 
 	std::vector<Vertex> shineTextVertex;
@@ -1045,10 +1066,11 @@ void Game::RenderAttractMode() const {
 							Vec2(SCREEN_CENTER_X - 675.f, SCREEN_SIZE_Y - 225.f), 150.f, Rgba8(255, 255, 255, 0));
 
 	TransformVertexArrayShine((int)shineTextVertex.size(), shineTextVertex.data(), 1.f, 0.f,
-							Vec2(0, Interpolate(-m_titleUpDownMax, m_titleUpDownMax, SinDegrees(titleFraction * 180.f))), 1.2f*m_gameRunTime);
+							Vec2(0, Interpolate(-m_titleUpDownMax, m_titleUpDownMax, SinDegrees(titleFraction * 180.f))), 1.2f* (float)m_gameClock->GetTotalSeconds());
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)shineTextVertex.size(), shineTextVertex.data());
 
-	g_engine->m_renderer->EndCamera(*m_screenCamera);
+	g_engine->m_renderer->EndCamera(*m_viewCamera);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1200,16 +1222,20 @@ void Game::GenerateStarsMesh(int starCount, Vertex* starsMesh, Vec2 buttomLeft, 
 //--------------------------------------------------------------------------------------------------
 void Game::RenderStars() const {
 	if (m_curGameState == GAME_ATTRACT_MODE) {
+		g_engine->m_renderer->BindTexture(nullptr);
 		g_engine->m_renderer->DrawVertexArray(MAX_ATTRACTMODE_STAR * 24, m_attractModeStarsMesh);
 	}
 	else if (m_curGameState == GAME_PLAYING_MODE) {
-		TransformVertexArrayXY3D(MAX_FAR_STAR * 24, m_attractModeFarStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.0125f * m_deltaSeconds);
+		TransformVertexArrayXY3D(MAX_FAR_STAR * 24, m_attractModeFarStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.0125f * (float)m_gameClock->GetDeltaSeconds());
+		g_engine->m_renderer->BindTexture(nullptr);
 		g_engine->m_renderer->DrawVertexArray(MAX_FAR_STAR * 24, m_attractModeFarStarsMesh);
 
-		TransformVertexArrayXY3D(MAX_NEAR_STAR * 24, m_attractModeNearStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.025f * m_deltaSeconds);
+		TransformVertexArrayXY3D(MAX_NEAR_STAR * 24, m_attractModeNearStarsMesh, 1.f, 0.f, -m_player->m_velocity * 0.025f * (float)m_gameClock->GetDeltaSeconds());
+		g_engine->m_renderer->BindTexture(nullptr);
 		g_engine->m_renderer->DrawVertexArray(MAX_NEAR_STAR * 24, m_attractModeNearStarsMesh);
 	}
 	else {
+		g_engine->m_renderer->BindTexture(nullptr);
 		g_engine->m_renderer->DrawVertexArray(MAX_FAR_STAR * 24, m_attractModeFarStarsMesh);
 		g_engine->m_renderer->DrawVertexArray(MAX_NEAR_STAR * 24, m_attractModeNearStarsMesh);
 	}
@@ -1221,10 +1247,10 @@ void Game::RenderWorldBoundary() const {
 }
 
 //--------------------------------------------------------------------------------------------------
-void Game::UpdateAllAttractModeBoids(float deltaSeconds) {
+void Game::UpdateAllAttractModeBoids() {
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
 		if (m_attractModeBoids[i].isActive) {
-			UpdateOneAttractModeBoid(&m_attractModeBoids[i], deltaSeconds);
+			UpdateOneAttractModeBoid(&m_attractModeBoids[i]);
 		}
 	}
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
@@ -1236,7 +1262,7 @@ void Game::UpdateAllAttractModeBoids(float deltaSeconds) {
 }
 
 //--------------------------------------------------------------------------------------------------
-void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSeconds) {
+void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid) {
 	boid->neighborCount = 0;
 	for (int i = 0; i < MAX_ATTRACTMODE_BOIDS; i++) {
 		if (&m_attractModeBoids[i] != boid && m_attractModeBoids[i].isActive) {
@@ -1293,14 +1319,14 @@ void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSec
 		Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
 
 		if (boid->boidsType == 0) {
-			boid->nextVelocity = boid->velocity + centerForce * deltaSeconds;
+			boid->nextVelocity = boid->velocity + centerForce * (float)m_gameClock->GetDeltaSeconds();
 		}
 		else {
-			boid->nextVelocity = boid->velocity + playerForce * deltaSeconds;
+			boid->nextVelocity = boid->velocity + playerForce * (float)m_gameClock->GetDeltaSeconds();
 		}
 		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidBeetleMaxSpeed);
 
-		boid->nextPosition = boid->position + boid->nextVelocity * deltaSeconds;
+		boid->nextPosition = boid->position + boid->nextVelocity * (float)m_gameClock->GetDeltaSeconds();
 		boid->nextPosition.x = GetClamped(boid->nextPosition.x, 0.f, SCREEN_SIZE_X);
 		boid->nextPosition.y = GetClamped(boid->nextPosition.y, 0.f, SCREEN_SIZE_Y);
 		return;
@@ -1331,23 +1357,23 @@ void Game::UpdateOneAttractModeBoid(AttractModeBoidsEntity* boid, float deltaSec
 
 	if (boid->boidsType == 1) {
 		boid->nextVelocity = boid->velocity
-			+ (separation + alignment + cohesion + playerForce + centerForce) * deltaSeconds;
+			+ (separation + alignment + cohesion + playerForce + centerForce) * (float)m_gameClock->GetDeltaSeconds();
 
 		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidBeetleMaxSpeed);
 	}
 	else if (boid->boidsType == 2) {
 		boid->nextVelocity = boid->velocity
-			+ (separation + alignment + cohesion + playerForce*2 + centerForce) * deltaSeconds;
+			+ (separation + alignment + cohesion + playerForce*2 + centerForce) * (float)m_gameClock->GetDeltaSeconds();
 
 		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidWaspMaxSpeed);
 	}
 	else {
 		boid->nextVelocity = boid->velocity
-			+ (separation + centerForce) * deltaSeconds;
+			+ (separation + centerForce) * (float)m_gameClock->GetDeltaSeconds();
 
 		boid->nextVelocity = boid->nextVelocity.GetClamped(m_boidPlayerMaxSpeed);
 	}
-	boid->nextPosition = boid->position + boid->nextVelocity * deltaSeconds;
+	boid->nextPosition = boid->position + boid->nextVelocity * (float)m_gameClock->GetDeltaSeconds();
 
 	boid->nextPosition.x = GetClamped(boid->nextPosition.x, 0.f, SCREEN_SIZE_X);
 	boid->nextPosition.y = GetClamped(boid->nextPosition.y, 0.f, SCREEN_SIZE_Y);

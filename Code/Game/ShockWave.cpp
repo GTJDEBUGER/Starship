@@ -10,6 +10,7 @@
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 ShockWave::ShockWave(Game* game, Vec2 position, float duration, float maxSpreadDistance, Rgba8 waveColor)
@@ -61,9 +62,9 @@ ShockWave::ShockWave(Game* game, Vec2 position, float duration, float maxSpreadD
 }
 
 //-----------------------------------------------------------------------------------------------
-void ShockWave::Update(float deltaSeconds)
+void ShockWave::Update()
 {
-	m_lifeTime -= deltaSeconds;
+	m_lifeTime -= (float)m_game->m_gameClock->GetDeltaSeconds();
 	if(m_lifeTime <= 0.f) {
 		Die();
 		return;
@@ -83,6 +84,7 @@ void ShockWave::Render() const
 									   (unsigned char) (255.f * m_lifeTime/m_duration));
 	}
 	TransformVertexArrayXY3D(m_vertexNum, m_worldMesh, m_spreadDistance * (1.f - m_lifeTime/m_duration), 0.f, m_position);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(m_vertexNum, m_worldMesh);
 }
 

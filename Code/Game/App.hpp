@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/EventSystem.hpp"
 
 class App;
 class Game;
@@ -18,6 +19,8 @@ public:
 	void Render();
 	bool IsQuitting();
 	void Shutdown();
+	static bool HandleQuit(EventArgs& args);
+	static bool HandleSetTimeScale(EventArgs& args);
 
 public:
 	Game* m_game                        = nullptr;
@@ -35,10 +38,10 @@ public:
 	size_t m_gameSoundPlaybackID;
 	size_t m_accelerateSoundPlaybackID;
 
+	Camera* m_screenCamera              = nullptr;
+	float m_gameTimeScale               = 1.f;
+
 private:
 	void HandlePlayerInput();
 	void RenderAttractMode() const;
-
-private:
-	float m_lastFrameTime               = 0.f;
 };

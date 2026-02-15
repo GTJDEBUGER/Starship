@@ -177,7 +177,7 @@ void DrawAABB(Vec2 buttomLeft, Vec2 topRight, Rgba8 leftColor, Rgba8 rightColor,
 		centerColor,
 		Vec2(0.f, 0.f)
 	);
-
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(12, tempMesh);
 }
 

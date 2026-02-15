@@ -9,7 +9,7 @@ public:
 	ShockWave(Game* game, Vec2 position, float duration, float maxSpreadDistance, Rgba8 waveColor);
 	~ShockWave() override = default;
 
-	void             Update(float deltaSeconds) override;
+	void             Update() override;
 	void             Render() const override;
 	void             Die() override;
 

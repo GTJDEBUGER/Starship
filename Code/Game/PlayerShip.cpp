@@ -15,6 +15,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 PlayerShip::PlayerShip(Game* game)
@@ -32,7 +33,7 @@ PlayerShip::PlayerShip(Game* game)
 }
 
 //-----------------------------------------------------------------------------------------------
-void PlayerShip::Update(float deltaSeconds)
+void PlayerShip::Update()
 {
 	//--------------------------------------------------------------------------------
 	if (m_isDead) {
@@ -50,22 +51,22 @@ void PlayerShip::Update(float deltaSeconds)
 		CheckBounce();
 	}
 	//--------------------------------------------------------------------------------
-	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
-	m_fireTimer = GetClamped(m_fireTimer + deltaSeconds, 0.f, m_fireInterval);
-	m_runTimer += deltaSeconds;
-	m_invincibleTimer = GetClamped(m_invincibleTimer - deltaSeconds, 0.f, m_invincibleDuration);
+	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, 1.f);
+	m_fireTimer = GetClamped(m_fireTimer + (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, m_fireInterval);
+	m_runTimer += (float)m_game->m_gameClock->GetDeltaSeconds();
+	m_invincibleTimer = GetClamped(m_invincibleTimer - (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, m_invincibleDuration);
 	if (m_shieldBarMax > 0) {
-		m_shieldBarVal = GetClamped(m_shieldBarVal + m_shieldRecoverSpeed * deltaSeconds, 0.f, m_shieldBarMax);
+		m_shieldBarVal = GetClamped(m_shieldBarVal + m_shieldRecoverSpeed * (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, m_shieldBarMax);
 	}
 	//--------------------------------------------------------------------------------
-	m_velocity += GetForwardVector() * m_acceleration * deltaSeconds;
+	m_velocity += GetForwardVector() * m_acceleration * (float)m_game->m_gameClock->GetDeltaSeconds();
 	m_curSpeed = m_velocity.GetLength();
 	if (m_curSpeed > PLAYER_MAX_SPEED) {
 		m_velocity = m_velocity / m_curSpeed * PLAYER_MAX_SPEED;
 		m_curSpeed = PLAYER_MAX_SPEED;
 	}
-	m_position += m_velocity * deltaSeconds;
-	m_orientationDegrees += m_rotationSpeed * deltaSeconds;
+	m_position += m_velocity * (float)m_game->m_gameClock->GetDeltaSeconds();
+	m_orientationDegrees += m_rotationSpeed * (float)m_game->m_gameClock->GetDeltaSeconds();
 	g_engine->m_audio->SetSoundPlaybackVolume(g_app->m_accelerateSoundPlaybackID, 0.5f * m_acceleration / PLAYER_SHIP_ACCELERATION);
 
 	//--------------------------------------------------------------------------------
@@ -99,6 +100,7 @@ void PlayerShip::Render() const
 	m_worldMesh[16] = Vertex(Vec3(-2.f, -1.f, 0.f), Rgba8(255, 200, 0, 255), Vec2(0.f, 0.f));
 	m_worldMesh[17] = Vertex(Vec3(flameLength, 0.f, 0.f), Rgba8(255, 0, 0, 0), Vec2(0.f, 0.f));
 	TransformVertexArrayXY3D(m_vertexNum, m_worldMesh, 1.f, m_orientationDegrees, m_position);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(m_vertexNum, m_worldMesh);
 
 	if (m_shieldBarVal > 0) {

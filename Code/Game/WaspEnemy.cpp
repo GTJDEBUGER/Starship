@@ -14,6 +14,7 @@
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Clock.hpp"
 
 //-----------------------------------------------------------------------------------------------
 WaspEnemy::WaspEnemy(Game* game)
@@ -33,14 +34,14 @@ WaspEnemy::WaspEnemy(Game* game)
 }
 
 //-----------------------------------------------------------------------------------------------
-void WaspEnemy::Update(float deltaSeconds)
+void WaspEnemy::Update()
 {
 	//--------------------------------------------------------------------------------
 	if (m_health <= 0) {
 		Die();
 		return;
 	}
-	m_deltaSeconds = deltaSeconds;
+
 	//--------------------------------------------------------------------------------
 	CheckCollide();
 	FindNearbyEnemy();
@@ -48,11 +49,11 @@ void WaspEnemy::Update(float deltaSeconds)
 
 	//--------------------------------------------------------------------------------
 	m_curFrame = (m_curFrame + 1) % m_maxFrame;
-	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * deltaSeconds, 0.f, 1.f);
+	m_flashFraction = GetClamped(m_flashFraction - m_flashFractionDecay * (float)m_game->m_gameClock->GetDeltaSeconds(), 0.f, 1.f);
 
 	//--------------------------------------------------------------------------------
 	m_orientationDegrees = m_velocity.GetOrientationDegrees();
-	m_position += m_velocity * deltaSeconds;
+	m_position += m_velocity * (float)m_game->m_gameClock->GetDeltaSeconds();
 	m_beforeTeleportPos = m_position;
 
 	if (TeleportFromBoundary()) {
@@ -92,6 +93,7 @@ void WaspEnemy::Render() const
 	}
 
 	TransformVertexArrayXY3D(m_vertexNum-12, m_worldMesh, 1.f, m_orientationDegrees, m_position);
+	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray(m_vertexNum-12, m_worldMesh);
 }
 
@@ -412,7 +414,7 @@ void WaspEnemy::BoidSimulation() {
 		toPlayer.Normalize();
 		Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
 
-		m_nextVelocity = m_velocity + playerForce * m_deltaSeconds;
+		m_nextVelocity = m_velocity + playerForce * (float)m_game->m_gameClock->GetDeltaSeconds();
 		m_nextVelocity = m_nextVelocity.GetClamped(m_maxSpeed);
 		return;
 	}
@@ -421,6 +423,6 @@ void WaspEnemy::BoidSimulation() {
 	toPlayer.Normalize();
 	Vec2 playerForce = toPlayer * m_boidPlayerPullWeight;
 
-	m_nextVelocity = m_velocity + (separation + alignment + cohesion + playerForce) * m_deltaSeconds;
+	m_nextVelocity = m_velocity + (separation + alignment + cohesion + playerForce) * (float)m_game->m_gameClock->GetDeltaSeconds();
 	m_nextVelocity = m_nextVelocity.GetClamped(m_maxSpeed);
 }
