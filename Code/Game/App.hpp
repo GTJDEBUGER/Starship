@@ -26,10 +26,7 @@ public:
 	Game* m_game                        = nullptr;
 					                    
 	bool m_isQuitting                   = false;
-	bool m_isSlowDown                   = false;
-	bool m_isPause                      = false;
 	bool m_isShutdown                   = false;
-	bool m_isRunSingleStep              = false;
 	bool m_isFiring                     = false;
 	bool m_isDebugDraw                  = false;
 	bool m_isPlayerRespawn              = false;

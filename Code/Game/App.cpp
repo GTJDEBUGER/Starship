@@ -113,26 +113,8 @@ void App::RunFrame()
 
 //-----------------------------------------------------------------------------------------------
 void App::Update() {
-	//-------------------------------------------------------------------------------------------
-	if (m_isSlowDown) {
-		m_game->m_gameClock->SetTimeScale(m_gameTimeScale*0.1f);
-	}
-	if (m_isPause) {
-		m_game->m_gameClock->SetTimeScale(0.f);
-		m_game->m_gameClock->Pause();
-	}
-	if (!m_isSlowDown && !m_isPause) {
-		m_game->m_gameClock->SetTimeScale(m_gameTimeScale);
-		m_game->m_gameClock->Unpause();
-	}
-
-	if (m_isRunSingleStep) {
-		m_isRunSingleStep = false;
-		m_isPause = true;
-		m_game->m_gameClock->StepSingleFrame();
-	}
-
 	Clock::TickSystemClock();
+	m_game->m_gameClock->SetTimeScale(m_gameTimeScale);
 	//-------------------------------------------------------------------------------------------
 	m_game->Update();
 }
@@ -172,15 +154,15 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
-		m_isSlowDown = true;
+		m_game->m_gameClock->SetTimeScale(m_gameTimeScale * 0.1f);
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('P')) {
-		m_isPause = !m_isPause;
+		m_game->m_gameClock->TogglePause();
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('O')) {
-		m_isRunSingleStep = true;
+		m_game->m_gameClock->StepSingleFrame();
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_SPACE)) {
@@ -266,7 +248,7 @@ void App::HandlePlayerInput(){
 	}
 
 	if (g_engine->m_input->WasKeyJustReleased('T')) {
-		m_isSlowDown = false;
+		m_game->m_gameClock->SetTimeScale(m_gameTimeScale);
 	}
 
 	if (g_engine->m_input->WasKeyJustReleased('E') || !g_engine->m_input->IsKeyDown('E')) {
