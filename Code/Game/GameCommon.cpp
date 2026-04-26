@@ -29,10 +29,10 @@ void DrawLine(Vec2 startPosition, Vec2 endPosition, Rgba8 lineCOlor, float thick
 	g_engine->m_renderer->CopyCPUToGPU(
 		tempMesh,
 		sizeof(tempMesh),
-		g_engine->m_renderer->m_immediateVBO
+		g_engine->m_renderer->m_immediateUnlitVBO
 	);
-	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateVBO);
-	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateVBO, sizeof(tempMesh) / sizeof(Vertex));
+	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateUnlitVBO);
+	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateUnlitVBO, sizeof(tempMesh) / sizeof(Vertex));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -99,10 +99,10 @@ void DrawDisc(Vec2 centre, float radius, Rgba8 outerColor, Rgba8 innerColor) {
 	g_engine->m_renderer->CopyCPUToGPU(
 		tempMesh,
 		sizeof(tempMesh),
-		g_engine->m_renderer->m_immediateVBO
+		g_engine->m_renderer->m_immediateUnlitVBO
 	);
-	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateVBO);
-	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateVBO, sizeof(tempMesh) / sizeof(Vertex));
+	g_engine->m_renderer->BindVertexBuffer(g_engine->m_renderer->m_immediateUnlitVBO);
+	g_engine->m_renderer->DrawVertexBuffer(g_engine->m_renderer->m_immediateUnlitVBO, sizeof(tempMesh) / sizeof(Vertex));
 }
 
 //-----------------------------------------------------------------------------------------------
