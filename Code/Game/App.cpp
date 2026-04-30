@@ -28,6 +28,13 @@ App::App()
 	config.m_devConsoleConfig.m_camera = m_screenCamera;
 	new Engine(config);
 
+	m_screenCamera->SetViewPort(
+		AABB2(
+			Vec2(0.f, 0.f),
+			Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+		)
+	);
+
 	m_game = new Game();
 
 	g_engine->m_eventSystem->SubscribeEventCallbackFunction("quit", &HandleQuit, "Close whole game application.", true);

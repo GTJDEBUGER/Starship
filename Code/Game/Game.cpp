@@ -198,7 +198,7 @@ void Game::Render() const
 	//----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_PLAYING_MODE || m_curGameState == GAME_PLAYER_UPGRADE_MODE) {
 		//-------------------------------------------------------------------------------------------
-		g_engine->m_renderer->BeginCamera(*m_worldCamera);
+		g_engine->m_renderer->BeginCamera(*m_worldCamera, true);
 		RenderStars();
 
 		RenderPoolEntitys();
@@ -217,7 +217,7 @@ void Game::Render() const
 
 		//------------------------------------------------------------------------------------------
 
-		g_engine->m_renderer->BeginCamera(*m_viewCamera);
+		g_engine->m_renderer->BeginCamera(*m_viewCamera, true);
 
 		RenderUI();
 
@@ -234,14 +234,14 @@ void Game::Render() const
 
 	//----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_ATTRACT_MODE) {
-		g_engine->m_renderer->BeginCamera(*m_viewCamera);
+		g_engine->m_renderer->BeginCamera(*m_viewCamera, true);
 		RenderStars();
 		if (g_app->m_isDebugDraw) {
 			RenderDebugThings();
 		}
-		RenderAttractMode();
-
 		g_engine->m_renderer->EndCamera(*m_viewCamera);
+
+		RenderAttractMode();
 	}
 }
 
@@ -970,7 +970,7 @@ PlayerUpgradeItem const Game::GetChoseUpgrade() const {
 
 //--------------------------------------------------------------------------------------------------
 void Game::RenderAttractMode() const {
-	g_engine->m_renderer->BeginCamera(*m_viewCamera);
+	g_engine->m_renderer->BeginCamera(*m_viewCamera, true);
 	float titleFraction = m_titleAnimationTimeCount / m_titleAnimationTotalTime;
 	float boidsFraction = m_boidsAnimationTimeCount / m_boidsAnimationTotalTime;
 	float playerFraction = m_boidsPlayerAnimationTimeCount / m_boidsPlayerAnimationTotalTime;
