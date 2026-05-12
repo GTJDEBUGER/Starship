@@ -65,7 +65,7 @@ App::App()
 	SoundID accelerateSound = g_engine->m_audio->CreateOrGetSound("Data/Audio/Acceleration.wav");
 	m_accelerateSoundPlaybackID = g_engine->m_audio->StartSound(accelerateSound, true, 1.0f, 0.f, 0.f);
 
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Stsrship GOLD");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Starship GOLD");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Input Tutorial:");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-F1 Draw debug rings and lines");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-F8 Force restart whole game");
